@@ -10,6 +10,7 @@ import Receipts from './pages/Receipts';
 import Settings from './pages/Settings';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
+import Reminders from './pages/Reminders';
 import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 
@@ -61,6 +62,13 @@ function App() {
               <ProtectedRoute>
                 <Layout>
                   <Settings />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            <Route path="/reminders" element={
+              <ProtectedRoute>
+                <Layout>
+                  <Reminders />
                 </Layout>
               </ProtectedRoute>
             } />
