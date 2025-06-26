@@ -12,9 +12,6 @@ import {
 import {
   MoreVert,
   TrendingUp,
-  Groups,
-  AttachMoney,
-  AccessTime,
   ArrowForward,
 } from '@mui/icons-material';
 import { 

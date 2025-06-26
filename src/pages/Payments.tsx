@@ -2,7 +2,6 @@ import {
   Box,
   Typography,
   Card,
-  CardContent,
   Button,
   Table,
   TableBody,
@@ -21,7 +20,6 @@ import {
   Grid,
   Tab,
   Tabs,
-  Paper,
 } from '@mui/material';
 import { useState } from 'react';
 import {
@@ -85,7 +83,7 @@ const Payments = () => {
   const [openNewFee, setOpenNewFee] = useState(false);
   const [openPaymentUpdate, setOpenPaymentUpdate] = useState(false);
 
-  const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
+  const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue);
   };
 

@@ -73,7 +73,7 @@ const TabPanel = (props: TabPanelProps) => {
 
 const GroupDetail = () => {
   const theme = useTheme();
-  const { groupId } = useParams();
+  useParams();
   const navigate = useNavigate();
   const location = useLocation();
   const [tabValue, setTabValue] = useState(0);
@@ -142,7 +142,7 @@ const GroupDetail = () => {
     phone: '',
   });
 
-  const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
+  const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue);
   };
 
