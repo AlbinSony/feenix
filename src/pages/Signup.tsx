@@ -28,42 +28,39 @@ const Signup = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const { register } = useAuth();
   const navigate = useNavigate();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setIsLoading(true);
     
-    if (!fullName || !email || !password) {
-      setError('Please fill in all required fields');
-      return;
-    }
+    try {
+      if (!fullName || !email || !password) {
+        throw new Error('Please fill in all required fields');
+      }
 
-    if (password !== confirmPassword) {
-      setError('Passwords do not match');
-      return;
-    }
+      if (password !== confirmPassword) {
+        throw new Error('Passwords do not match');
+      }
 
-    // Basic email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      setError('Please enter a valid email address');
-      return;
-    }
-    
-    // Password strength check
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters long');
-      return;
-    }
-    
-    const success = register(fullName, email, password);
-    
-    if (success) {
-      navigate('/login', { replace: true });
-    } else {
-      setError('Failed to create account. Please try again.');
+      if (password.length < 6) {
+        throw new Error('Password must be at least 6 characters long');
+      }
+
+      await register(fullName, email, password);
+      navigate('/login', { 
+        replace: true,
+        state: { message: 'Registration successful! Please login.' }
+      });
+      
+    } catch (err: any) {
+      console.error('Signup error:', err);
+      setError(err.message || 'Registration failed. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -230,6 +227,7 @@ const Signup = () => {
                   fullWidth
                   variant="contained"
                   size="large"
+                  disabled={isLoading}
                   sx={{ 
                     mt: 4, 
                     mb: 2, 
@@ -240,7 +238,7 @@ const Signup = () => {
                     boxShadow: '0 4px 12px rgba(34, 197, 94, 0.2)'
                   }}
                 >
-                  Create Account
+                  {isLoading ? 'Creating Account...' : 'Create Account'}
                 </Button>
                 
                 <Box sx={{ mt: 2, mb: 2 }}>

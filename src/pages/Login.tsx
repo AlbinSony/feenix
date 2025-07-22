@@ -24,27 +24,34 @@ const Login = () => {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   
   const from = location.state?.from?.pathname || '/';
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setIsLoading(true);
     
-    if (!email || !password) {
-      setError('Please enter both email and password');
-      return;
-    }
-    
-    const success = login(email, password);
-    
-    if (success) {
-      navigate(from, { replace: true });
-    } else {
-      setError('Invalid email or password');
+    try {
+      if (!email || !password) {
+        throw new Error('Please enter both email and password');
+      }
+      
+      const success = await login(email, password);
+      
+      if (success) {
+        navigate(from, { replace: true });
+      } else {
+        throw new Error('Invalid email or password');
+      }
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -183,6 +190,7 @@ const Login = () => {
                   fullWidth
                   variant="contained"
                   size="large"
+                  disabled={isLoading}
                   sx={{ 
                     mt: 4, 
                     mb: 3, 
@@ -198,7 +206,7 @@ const Login = () => {
                     }
                   }}
                 >
-                  Login
+                  {isLoading ? 'Logging in...' : 'Login'}
                 </Button>
 
                 <Grid container justifyContent="center" sx={{ mt: 2 }}>
