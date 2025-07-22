@@ -16,48 +16,56 @@ import {
   Select,
   MenuItem,
   Stack,
+  Grid,
 } from '@mui/material';
 import {
-  Search as SearchIcon
+  Search as SearchIcon,
+  Receipt as ReceiptIcon,
+  Download as DownloadIcon,
 } from '@mui/icons-material';
 
 interface Receipt {
-  id: string;
+  receiptNo: string;
+  name: string;
   date: string;
-  member: string;
   amount: number;
+  method: string;
   status: 'paid' | 'pending' | 'overdue';
 }
 
 const Receipts = () => {
   const receipts: Receipt[] = [
     {
-      id: '12230 Notum',
-      date: '2024-03-15',
-      member: 'Client Name',
-      amount: 250.0,
-      status: 'paid',
+      receiptNo: "INV1001",
+      name: "Aarav Kumar",
+      date: "2025-06-01",
+      amount: 1500,
+      method: "UPI",
+      status: 'paid'
     },
     {
-      id: '12235 Nemt',
-      date: '2024-03-14',
-      member: 'Client Name',
-      amount: 200.0,
-      status: 'pending',
+      receiptNo: "INV1002",
+      name: "Priya Sharma",
+      date: "2025-06-02",
+      amount: 2000,
+      method: "Credit Card",
+      status: 'paid'
     },
     {
-      id: '16:00 Om',
-      date: '2024-03-13',
-      member: 'Client Name',
-      amount: 200.0,
-      status: 'overdue',
+      receiptNo: "INV1003",
+      name: "Raj Malhotra",
+      date: "2025-06-03",
+      amount: 1800,
+      method: "Net Banking",
+      status: 'pending'
     },
     {
-      id: '80.bnting',
-      date: '2024-03-12',
-      member: 'Client Name',
-      amount: 350.0,
-      status: 'paid',
+      receiptNo: "INV1004",
+      name: "Neha Patel",
+      date: "2025-06-04",
+      amount: 1700,
+      method: "Debit Card",
+      status: 'overdue'
     },
   ];
 
@@ -76,194 +84,142 @@ const Receipts = () => {
 
   return (
     <Fade in timeout={500}>
-      <Box
-        sx={{
-          p: { xs: 2, sm: 4 },
-          maxWidth: '1400px',
-          margin: '0 auto',
-          minHeight: 'calc(100vh - 88px)',
-          position: 'relative',
-          zIndex: 1,
-        }}
-      >
-        <Paper
-          elevation={0}
-          sx={{
-            p: 3,
-            borderRadius: 2,
-            backgroundColor: 'rgba(255, 255, 255, 0.95)',
-            backdropFilter: 'blur(10px)',
-            height: '100%',
-          }}
-        >
-          <Typography
-            variant="h5"
-            sx={{
-              mb: 4,
-              fontWeight: 600,
-              color: 'text.primary',
-            }}
-          >
-            Receipts & Payment Status
-          </Typography>
+      <Box sx={{ p: { xs: 2, sm: 4 }, maxWidth: '1400px', margin: '0 auto' }}>
+        <Grid container spacing={3}>
+          {/* Left Section - Receipt List */}
+          <Grid item xs={12} md={7}>
+            <Paper elevation={0} sx={{ p: 3, borderRadius: 2, backgroundColor: 'rgba(255, 255, 255, 0.95)' }}>
+              <Typography variant="h5" sx={{ mb: 3, fontWeight: 600 }}>
+                Receipts & Invoices
+              </Typography>
 
-          <Box sx={{ mb: 4 }}>
-            <Stack
-              direction={{ xs: 'column', md: 'row' }}
-              spacing={2}
-              sx={{
-                mb: 3,
-                alignItems: { xs: 'stretch', md: 'center' },
-              }}
-            >
-              <Select
-                size="small"
-                defaultValue="2013/2241"
-                sx={{
-                  minWidth: 150,
-                  backgroundColor: 'white',
-                }}
-              >
-                <MenuItem value="2013/2241">2013/2241</MenuItem>
-              </Select>
+              <Stack direction="row" spacing={2} sx={{ mb: 3 }}>
+                <Select
+                  size="small"
+                  defaultValue="all"
+                  sx={{ minWidth: 200 }}
+                >
+                  <MenuItem value="all">All Students</MenuItem>
+                  {receipts.map(receipt => (
+                    <MenuItem key={receipt.receiptNo} value={receipt.receiptNo}>
+                      {receipt.name}
+                    </MenuItem>
+                  ))}
+                </Select>
 
-              <Stack direction="row" spacing={1}>
-                {['Paid', 'Pending', 'Overdue'].map((status) => (
-                  <Chip
-                    key={status}
-                    label={status}
-                    color={
-                      status === 'Paid'
-                        ? 'success'
-                        : status === 'Pending'
-                        ? 'warning'
-                        : 'error'
-                    }
-                    variant="outlined"
-                    sx={{
-                      '&:hover': {
-                        backgroundColor: 'rgba(0, 0, 0, 0.04)',
-                        cursor: 'pointer',
-                      },
-                    }}
-                  />
-                ))}
+                <TextField
+                  size="small"
+                  placeholder="Search receipts"
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <SearchIcon />
+                      </InputAdornment>
+                    ),
+                  }}
+                  sx={{ flex: 1 }}
+                />
               </Stack>
 
-              <TextField
-                size="small"
-                placeholder="Search"
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <SearchIcon />
-                    </InputAdornment>
-                  ),
-                }}
-                sx={{
-                  ml: { xs: 0, md: 'auto' },
-                  backgroundColor: 'white',
-                  width: { xs: '100%', md: '250px' },
-                }}
-              />
-            </Stack>
-
-            <Typography variant="h6" sx={{ mb: 3, fontWeight: 500 }}>
-              Payment History
-            </Typography>
-
-            <TableContainer
-              sx={{
-                backgroundColor: 'white',
-                borderRadius: 1,
-                boxShadow: '0 0 10px rgba(0,0,0,0.05)',
-              }}
-            >
-              <Table>
-                <TableHead>
-                  <TableRow>
-                    <TableCell sx={{ fontWeight: 600 }}>Invoice ID</TableCell>
-                    <TableCell sx={{ fontWeight: 600 }}>Date</TableCell>
-                    <TableCell sx={{ fontWeight: 600 }}>Amount</TableCell>
-                    <TableCell sx={{ fontWeight: 600 }}>Action</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {receipts.map((receipt) => (
-                    <TableRow
-                      key={receipt.id}
-                      sx={{
-                        '&:hover': {
-                          backgroundColor: 'rgba(0, 0, 0, 0.02)',
-                        },
-                      }}
-                    >
-                      <TableCell>
-                        <Box
-                          sx={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 2,
-                          }}
-                        >
-                          <Box
-                            sx={{
-                              width: 32,
-                              height: 32,
-                              bgcolor: 'rgba(0, 0, 0, 0.04)',
-                              borderRadius: 1,
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                            }}
+              <TableContainer>
+                <Table>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Receipt No</TableCell>
+                      <TableCell>Name</TableCell>
+                      <TableCell>Date</TableCell>
+                      <TableCell>Amount</TableCell>
+                      <TableCell>Status</TableCell>
+                      <TableCell>Action</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {receipts.map((receipt) => (
+                      <TableRow key={receipt.receiptNo} hover>
+                        <TableCell>
+                          <Stack direction="row" spacing={1} alignItems="center">
+                            <ReceiptIcon color="primary" />
+                            {receipt.receiptNo}
+                          </Stack>
+                        </TableCell>
+                        <TableCell>{receipt.name}</TableCell>
+                        <TableCell>{receipt.date}</TableCell>
+                        <TableCell>₹{receipt.amount}</TableCell>
+                        <TableCell>
+                          <Chip
+                            label={receipt.status}
+                            color={getStatusColor(receipt.status)}
+                            size="small"
                           />
-                          {receipt.id}
-                        </Box>
-                      </TableCell>
-                      <TableCell>
-                        <Chip
-                          label={receipt.status}
-                          size="small"
-                          color={getStatusColor(receipt.status)}
-                          sx={{ minWidth: 80, justifyContent: 'center' }}
-                        />
-                      </TableCell>
-                      <TableCell sx={{ fontWeight: 500 }}>
-                        ${receipt.amount.toFixed(2)}
-                      </TableCell>
-                      <TableCell>
-                        {receipt.status === 'paid' ? (
+                        </TableCell>
+                        <TableCell>
                           <Button
+                            startIcon={<DownloadIcon />}
                             variant="contained"
                             size="small"
-                            color="primary"
-                            sx={{
-                              textTransform: 'none',
-                              boxShadow: 'none',
-                              '&:hover': {
-                                boxShadow: 'none',
-                                backgroundColor: 'primary.dark',
-                              },
-                            }}
+                            sx={{ textTransform: 'none' }}
                           >
-                            Download Receipt
+                            Download
                           </Button>
-                        ) : (
-                          <Typography
-                            color="primary"
-                            sx={{ fontWeight: 500 }}
-                          >
-                            ${receipt.amount.toFixed(2)}
-                          </Typography>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
-          </Box>
-        </Paper>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </Paper>
+          </Grid>
+
+          {/* Right Section - PDF Preview */}
+          <Grid item xs={12} md={5}>
+            <Paper elevation={0} sx={{ p: 3, borderRadius: 2, backgroundColor: 'rgba(255, 255, 255, 0.95)' }}>
+              <Typography variant="h6" sx={{ mb: 3 }}>Receipt Preview</Typography>
+              
+              <Box sx={{ border: '1px solid #eee', p: 3, borderRadius: 1, mb: 2 }}>
+                {/* Logo Placeholder */}
+                <Box sx={{ mb: 3, height: 60, bgcolor: 'rgba(0,0,0,0.05)', borderRadius: 1 }} />
+
+                <Grid container spacing={2} sx={{ mb: 3 }}>
+                  <Grid item xs={6}>
+                    <Typography variant="body2" color="text.secondary">Receipt No</Typography>
+                    <Typography variant="body1" fontWeight="500">INV1001</Typography>
+                  </Grid>
+                  <Grid item xs={6}>
+                    <Typography variant="body2" color="text.secondary">Date</Typography>
+                    <Typography variant="body1" fontWeight="500">2025-06-01</Typography>
+                  </Grid>
+                  <Grid item xs={12}>
+                    <Typography variant="body2" color="text.secondary">Student Name</Typography>
+                    <Typography variant="body1" fontWeight="500">Aarav Kumar</Typography>
+                  </Grid>
+                  <Grid item xs={6}>
+                    <Typography variant="body2" color="text.secondary">Amount</Typography>
+                    <Typography variant="body1" fontWeight="500">₹1,500</Typography>
+                  </Grid>
+                  <Grid item xs={6}>
+                    <Typography variant="body2" color="text.secondary">Payment Method</Typography>
+                    <Typography variant="body1" fontWeight="500">UPI</Typography>
+                  </Grid>
+                </Grid>
+
+                {/* Signature Placeholder */}
+                <Box sx={{ mt: 4, pt: 2, borderTop: '1px dashed #eee' }}>
+                  <Typography variant="body2" color="text.secondary">Authorized Signature</Typography>
+                  <Box sx={{ height: 40, width: 150, bgcolor: 'rgba(0,0,0,0.05)', borderRadius: 1, mt: 1 }} />
+                </Box>
+              </Box>
+
+              <Button
+                fullWidth
+                variant="contained"
+                startIcon={<DownloadIcon />}
+                sx={{ textTransform: 'none' }}
+              >
+                Download Receipt
+              </Button>
+            </Paper>
+          </Grid>
+        </Grid>
       </Box>
     </Fade>
   );
