@@ -28,6 +28,16 @@ import {
   InputAdornment,
 } from '@mui/material';
 import {
+  Timeline,
+  TimelineItem,
+  TimelineSeparator,
+  TimelineConnector,
+  TimelineContent,
+  TimelineDot,
+  TimelineOppositeContent,
+  timelineItemClasses,
+} from '@mui/lab';
+import {
   Edit as EditIcon,
   Delete as DeleteIcon,
   Add as AddIcon,
@@ -36,6 +46,12 @@ import {
   Search as SearchIcon,
   Save as SaveIcon,
   ArrowBack as ArrowBackIcon,
+  CurrencyRupee as RupeeIcon,
+  Assessment as AssessmentIcon,
+  TimelineOutlined as TimelineIcon,
+  CheckCircleOutline as CheckCircleIcon,
+  PendingOutlined as PendingIcon,
+  Notifications as NotificationsIcon,
 } from '@mui/icons-material';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 
@@ -46,6 +62,15 @@ interface Member {
   phone: string;
   joinDate: string;
   status: 'active' | 'inactive';
+}
+
+interface PaymentEvent {
+  id: number;
+  type: 'payment' | 'reminder' | 'member_added' | 'fee_updated';
+  date: string;
+  description: string;
+  amount?: number;
+  status?: 'completed' | 'pending' | 'failed';
 }
 
 interface TabPanelProps {
@@ -71,6 +96,35 @@ const TabPanel = (props: TabPanelProps) => {
   );
 };
 
+const initializeGroupDetails = (locationState: any) => {
+  if (locationState?.group) {
+    return {
+      name: locationState.group.name,
+      description: locationState.group.description || 'Monthly payment group for regular members',
+      members: locationState.group.students || 0,
+      fees: locationState.group.fee || 0,
+      frequency: locationState.group.frequency || 'Monthly',
+      collected: locationState.group.collected || 0,
+      dues: locationState.group.dues || 0,
+      createdDate: locationState.group.createdDate || '2024-01-01',
+      lastPaymentDate: locationState.group.lastPaymentDate || '',
+      nextDueDate: locationState.group.nextDueDate || '',
+    };
+  }
+  return {
+    name: 'Loading...',
+    description: '',
+    members: 0,
+    fees: 0,
+    frequency: 'Monthly',
+    collected: 0,
+    dues: 0,
+    createdDate: '',
+    lastPaymentDate: '',
+    nextDueDate: '',
+  };
+};
+
 const GroupDetail = () => {
   const theme = useTheme();
   useParams();
@@ -81,35 +135,12 @@ const GroupDetail = () => {
   const [openAddMember, setOpenAddMember] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Initialize with data from navigation state
-  const initializeGroupDetails = () => {
-    if (location.state?.group) {
-      return {
-        name: location.state.group.name,
-        description: 'Monthly payment group for regular members',
-        members: location.state.group.members,
-        fees: parseInt(location.state.group.fees.replace(/[^0-9]/g, '')), // Convert "$5/month" to 5
-        paymentCycle: 'monthly',
-        createdDate: '2024-01-01',
-      };
-    }
-    return {
-      name: 'Loading...',
-      description: '',
-      members: 0,
-      fees: 0,
-      paymentCycle: 'monthly',
-      createdDate: '',
-    };
-  };
-
-  const [groupDetails, setGroupDetails] = useState(initializeGroupDetails());
+  const [groupDetails, setGroupDetails] = useState(initializeGroupDetails(location.state));
   const [editedGroupDetails, setEditedGroupDetails] = useState({
     name: groupDetails.name,
     description: groupDetails.description,
   });
 
-  // Update editedGroupDetails when groupDetails changes
   useEffect(() => {
     setEditedGroupDetails({
       name: groupDetails.name,
@@ -117,7 +148,6 @@ const GroupDetail = () => {
     });
   }, [groupDetails]);
 
-  // Redirect to groups page if no group data is available
   useEffect(() => {
     if (!location.state?.group && groupDetails.name === 'Loading...') {
       navigate('/groups');
@@ -133,7 +163,6 @@ const GroupDetail = () => {
       joinDate: '2024-01-15',
       status: 'active',
     },
-    // Add more mock members as needed
   ]);
 
   const [newMemberData, setNewMemberData] = useState({
@@ -141,6 +170,30 @@ const GroupDetail = () => {
     email: '',
     phone: '',
   });
+
+  const [timelineEvents] = useState<PaymentEvent[]>([
+    {
+      id: 1,
+      type: 'payment',
+      date: '2024-02-15',
+      description: 'Monthly fee collected',
+      amount: 1500,
+      status: 'completed',
+    },
+    {
+      id: 2,
+      type: 'reminder',
+      date: '2024-02-10',
+      description: 'Payment reminder sent to all members',
+    },
+    {
+      id: 3,
+      type: 'member_added',
+      date: '2024-02-01',
+      description: 'New member John Doe added to group',
+    },
+  ]);
+
 
   const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue);
@@ -171,13 +224,11 @@ const GroupDetail = () => {
   };
 
   const handleDeleteMember = (memberId: number) => {
-    // Delete member logic
     setMembers(members.filter(member => member.id !== memberId));
   };
 
   return (
     <Box>
-      {/* Header Section */}
       <Box display="flex" alignItems="center" mb={3}>
         <IconButton 
           onClick={() => navigate('/groups')}
@@ -204,7 +255,7 @@ const GroupDetail = () => {
                 {groupDetails.name}
               </Typography>
               <Typography variant="subtitle1" color="text.secondary">
-                {groupDetails.members} members · ₹{groupDetails.fees}/{groupDetails.paymentCycle}
+                {groupDetails.members} members · ₹{groupDetails.fees}/{groupDetails.frequency}
               </Typography>
             </Box>
           </Box>
@@ -218,23 +269,158 @@ const GroupDetail = () => {
         </Box>
       </Box>
 
-      {/* Tabs Navigation */}
+      <Grid container spacing={3} sx={{ mb: 4 }}>
+        <Grid item xs={12} sm={6} md={4}>
+          <Card sx={{ bgcolor: theme.palette.primary.light }}>
+            <CardContent>
+              <Box display="flex" alignItems="center">
+                <Avatar sx={{ bgcolor: theme.palette.primary.main, mr: 2 }}>
+                  <PersonIcon />
+                </Avatar>
+                <Box>
+                  <Typography variant="h6">{groupDetails.members}</Typography>
+                  <Typography variant="body2">Total Members</Typography>
+                </Box>
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid item xs={12} sm={6} md={4}>
+          <Card sx={{ bgcolor: theme.palette.success.light }}>
+            <CardContent>
+              <Box display="flex" alignItems="center">
+                <Avatar sx={{ bgcolor: theme.palette.success.main, mr: 2 }}>
+                  <RupeeIcon />
+                </Avatar>
+                <Box>
+                  <Typography variant="h6">₹{groupDetails.collected.toLocaleString()}</Typography>
+                  <Typography variant="body2">Total Collected</Typography>
+                </Box>
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid item xs={12} sm={6} md={4}>
+          <Card sx={{ bgcolor: theme.palette.error.light }}>
+            <CardContent>
+              <Box display="flex" alignItems="center">
+                <Avatar sx={{ bgcolor: theme.palette.error.main, mr: 2 }}>
+                  <AssessmentIcon />
+                </Avatar>
+                <Box>
+                  <Typography variant="h6">₹{groupDetails.dues.toLocaleString()}</Typography>
+                  <Typography variant="body2">Total Dues</Typography>
+                </Box>
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
+
       <Card sx={{ mb: 3 }}>
-        <Tabs
-          value={tabValue}
-          onChange={handleTabChange}
-          sx={{
-            px: 2,
-            borderBottom: 1,
-            borderColor: 'divider',
-          }}
-        >
+        <CardContent>
+          <Typography variant="h6" gutterBottom sx={{ mb: 3, display: 'flex', alignItems: 'center' }}>
+            <TimelineIcon sx={{ mr: 1 }} /> Activity Timeline
+          </Typography>
+          <Timeline
+            sx={{
+              [`& .${timelineItemClasses.root}:before`]: {
+                flex: 0,
+                padding: 0,
+              },
+              px: 0
+            }}
+          >
+            {timelineEvents.map((event) => (
+              <TimelineItem key={event.id}>
+                <TimelineOppositeContent sx={{ flex: 0.2 }}>
+                  <Typography variant="body2" color="text.secondary" fontWeight={500}>
+                    {new Date(event.date).toLocaleDateString('en-US', {
+                      year: 'numeric',
+                      month: 'short',
+                      day: 'numeric'
+                    })}
+                  </Typography>
+                </TimelineOppositeContent>
+                <TimelineSeparator>
+                  <TimelineDot
+                    sx={{
+                      boxShadow: 1,
+                      bgcolor: event.type === 'payment' 
+                        ? 'success.main'
+                        : event.type === 'reminder' 
+                          ? 'warning.main' 
+                          : 'primary.main',
+                      p: 1
+                    }}
+                  >
+                    {event.type === 'payment' ? <RupeeIcon /> :
+                     event.type === 'reminder' ? <NotificationsIcon /> :
+                     <PersonIcon />}
+                  </TimelineDot>
+                  <TimelineConnector sx={{ bgcolor: 'divider' }} />
+                </TimelineSeparator>
+                <TimelineContent sx={{ py: '12px', px: 2 }}>
+                  <Card variant="outlined" sx={{ 
+                    p: 2, 
+                    bgcolor: alpha(
+                      event.type === 'payment' 
+                        ? theme.palette.success.main
+                        : event.type === 'reminder' 
+                          ? theme.palette.warning.main
+                          : theme.palette.primary.main,
+                      0.05
+                    )
+                  }}>
+                    <Typography variant="subtitle1" fontWeight={500}>
+                      {event.description}
+                    </Typography>
+                    {event.amount && (
+                      <Typography 
+                        variant="body2" 
+                        color="text.secondary" 
+                        sx={{ 
+                          mt: 1,
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 0.5
+                        }}
+                      >
+                        <RupeeIcon fontSize="small" />
+                        Amount: {event.amount.toLocaleString()}
+                      </Typography>
+                    )}
+                    {event.status && (
+                      <Box sx={{ mt: 1 }}>
+                        <Chip
+                          size="small"
+                          icon={event.status === 'completed' ? <CheckCircleIcon /> : <PendingIcon />}
+                          label={event.status}
+                          color={event.status === 'completed' ? 'success' : 'warning'}
+                          sx={{ 
+                            borderRadius: 1,
+                            '& .MuiChip-icon': {
+                              fontSize: 16
+                            }
+                          }}
+                        />
+                      </Box>
+                    )}
+                  </Card>
+                </TimelineContent>
+              </TimelineItem>
+            ))}
+          </Timeline>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <Tabs value={tabValue} onChange={handleTabChange}>
           <Tab label="Members" />
           <Tab label="Payment Settings" />
           <Tab label="Group Settings" />
         </Tabs>
 
-        {/* Members Tab */}
         <TabPanel value={tabValue} index={0}>
           <Box sx={{ px: 2 }}>
             <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
@@ -315,7 +501,6 @@ const GroupDetail = () => {
           </Box>
         </TabPanel>
 
-        {/* Payment Settings Tab */}
         <TabPanel value={tabValue} index={1}>
           <Box sx={{ px: 2 }}>
             <Card variant="outlined" sx={{ mb: 3 }}>
@@ -337,14 +522,14 @@ const GroupDetail = () => {
                       fullWidth
                       label="Payment Cycle"
                       select
-                      value={groupDetails.paymentCycle}
+                      value={groupDetails.frequency}
                       SelectProps={{
                         native: true,
                       }}
                     >
-                      <option value="monthly">Monthly</option>
-                      <option value="quarterly">Quarterly</option>
-                      <option value="yearly">Yearly</option>
+                      <option value="Monthly">Monthly</option>
+                      <option value="Quarterly">Quarterly</option>
+                      <option value="Yearly">Yearly</option>
                     </TextField>
                   </Grid>
                 </Grid>
@@ -353,7 +538,6 @@ const GroupDetail = () => {
           </Box>
         </TabPanel>
 
-        {/* Group Settings Tab */}
         <TabPanel value={tabValue} index={2}>
           <Box sx={{ px: 2 }}>
             <Card variant="outlined">
@@ -382,7 +566,6 @@ const GroupDetail = () => {
         </TabPanel>
       </Card>
 
-      {/* Edit Group Dialog */}
       <Dialog
         open={openEditGroup}
         onClose={() => setOpenEditGroup(false)}
@@ -437,7 +620,6 @@ const GroupDetail = () => {
         </DialogActions>
       </Dialog>
 
-      {/* Add Member Dialog */}
       <Dialog
         open={openAddMember}
         onClose={() => setOpenAddMember(false)}

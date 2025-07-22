@@ -1,42 +1,51 @@
 import {
   Card,
-  Box,
-  Typography,
   Table,
   TableBody,
   TableCell,
   TableContainer,
   TableHead,
   TableRow,
+  Typography,
   Chip,
+  Box,
+  TextField,
 } from '@mui/material';
-import { Check, Error, Schedule } from '@mui/icons-material';
+import { Search, WhatsApp } from '@mui/icons-material';
+import { format } from 'date-fns';
 
-// Mock data for reminder logs
-const reminderLogs = [
+const reminders = [
   {
     id: 1,
-    recipient: 'John Doe',
-    group: 'Class A',
-    sentAt: '2024-02-15 10:30 AM',
-    status: 'Sent',
-    type: 'Payment Due',
+    name: "Asha M",
+    group: "Batch B",
+    method: "WhatsApp",
+    time: "2024-06-10 10:15",
+    status: "Sent",
   },
   {
     id: 2,
-    recipient: 'Jane Smith',
-    group: 'Class B',
-    sentAt: '2024-02-15 10:29 AM',
-    status: 'Failed',
-    type: 'Payment Overdue',
+    name: "Aarav Kumar",
+    group: "Batch A",
+    method: "WhatsApp",
+    time: "2024-06-10 10:15",
+    status: "Failed",
   },
   {
     id: 3,
-    recipient: 'Mike Johnson',
-    group: 'Class A',
-    sentAt: '2024-02-15 10:25 AM',
-    status: 'Pending',
-    type: 'Payment Due',
+    name: "Zara Patel",
+    group: "Batch A",
+    method: "WhatsApp",
+    time: "2024-06-10 10:14",
+    status: "Delivered",
+  },
+  {
+    id: 4,
+    name: "Riya Singh",
+    group: "Batch B",
+    method: "WhatsApp",
+    time: "2024-06-10 10:14",
+    status: "Seen",
   },
 ];
 
@@ -50,57 +59,72 @@ const ReminderLog = () => {
         borderColor: 'divider',
       }}
     >
-      <Box sx={{ p: 3 }}>
-        <Typography variant="h6" gutterBottom>
+      <Box
+        sx={{
+          p: 2,
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          borderBottom: '1px solid',
+          borderColor: 'divider',
+        }}
+      >
+        <Typography variant="h6" fontWeight="600">
           Reminder History
         </Typography>
-
-        <TableContainer>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>Recipient</TableCell>
-                <TableCell>Group</TableCell>
-                <TableCell>Type</TableCell>
-                <TableCell>Sent At</TableCell>
-                <TableCell>Status</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {reminderLogs.map((log) => (
-                <TableRow key={log.id}>
-                  <TableCell>{log.recipient}</TableCell>
-                  <TableCell>{log.group}</TableCell>
-                  <TableCell>{log.type}</TableCell>
-                  <TableCell>{log.sentAt}</TableCell>
-                  <TableCell>
-                    <Chip
-                      size="small"
-                      icon={
-                        log.status === 'Sent' ? (
-                          <Check />
-                        ) : log.status === 'Failed' ? (
-                          <Error />
-                        ) : (
-                          <Schedule />
-                        )
-                      }
-                      label={log.status}
-                      color={
-                        log.status === 'Sent'
-                          ? 'success'
-                          : log.status === 'Failed'
-                          ? 'error'
-                          : 'warning'
-                      }
-                    />
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
+        <TextField
+          size="small"
+          placeholder="Search reminders..."
+          sx={{ width: 250 }}
+          InputProps={{
+            startAdornment: <Search sx={{ mr: 1, color: 'text.secondary' }} />,
+          }}
+        />
       </Box>
+
+      <TableContainer>
+        <Table>
+          <TableHead>
+            <TableRow>
+              <TableCell>Student</TableCell>
+              <TableCell>Group</TableCell>
+              <TableCell>Method</TableCell>
+              <TableCell>Time</TableCell>
+              <TableCell>Status</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {reminders.map((reminder) => (
+              <TableRow key={reminder.id}>
+                <TableCell>{reminder.name}</TableCell>
+                <TableCell>{reminder.group}</TableCell>
+                <TableCell>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <WhatsApp color="success" />
+                    {reminder.method}
+                  </Box>
+                </TableCell>
+                <TableCell>
+                  {format(new Date(reminder.time), 'PPp')}
+                </TableCell>
+                <TableCell>
+                  <Chip
+                    label={reminder.status}
+                    size="small"
+                    color={
+                      reminder.status === 'Sent' || reminder.status === 'Delivered'
+                        ? 'primary'
+                        : reminder.status === 'Seen'
+                        ? 'success'
+                        : 'error'
+                    }
+                  />
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
     </Card>
   );
 };

@@ -58,12 +58,16 @@ const Login = () => {
         justifyContent: 'center',
         padding: 3,
         position: 'relative',
+        bgcolor: '#f5f5f5',
+        backgroundImage: 'linear-gradient(135deg, #22c55e15 25%, transparent 25%), linear-gradient(225deg, #22c55e15 25%, transparent 25%), linear-gradient(45deg, #22c55e15 25%, transparent 25%), linear-gradient(315deg, #22c55e15 25%, #f5f5f5 25%)',
+        backgroundPosition: '40px 0, 40px 0, 0 0, 0 0',
+        backgroundSize: '80px 80px',
+        backgroundRepeat: 'repeat',
       }}
     >
-      {/* Background Component */}
       <AuthBackground />
       
-      <Fade in timeout={600}>
+      <Fade in timeout={800}>
         <Container maxWidth="sm">
           <Paper
             elevation={4}
@@ -74,8 +78,8 @@ const Login = () => {
               maxWidth: '500px',
               mx: 'auto',
               boxShadow: '0 8px 32px rgba(0, 0, 0, 0.08)',
-              background: 'rgba(255, 255, 255, 0.95)',
-              backdropFilter: 'blur(8px)',
+              background: 'rgba(255, 255, 255, 0.98)',
+              backdropFilter: 'blur(12px)',
               border: '1px solid rgba(255, 255, 255, 0.3)',
             }}
           >
@@ -90,11 +94,12 @@ const Login = () => {
                 sx={{ 
                   m: 1, 
                   bgcolor: 'primary.main',
-                  width: 56,
-                  height: 56,
+                  width: 70,
+                  height: 70,
+                  boxShadow: '0 4px 12px rgba(34, 197, 94, 0.2)',
                 }}
               >
-                <LockOutlined fontSize="large" />
+                <LockOutlined sx={{ fontSize: 35 }} />
               </Avatar>
               
               <Typography 
@@ -102,22 +107,30 @@ const Login = () => {
                 variant="h4" 
                 color="primary" 
                 fontWeight="bold"
+                textAlign="center"
                 sx={{ mb: 1 }}
               >
-                Login
+                Welcome to Feenix
               </Typography>
 
               <Typography
-                variant="subtitle1"
+                variant="h6"
                 color="text.secondary"
                 align="center"
-                sx={{ mb: 3 }}
+                sx={{ mb: 4 }}
               >
-                Welcome back to Feenix! Please login to continue.
+                Smart Payments Assistant
               </Typography>
 
               {error && (
-                <Alert severity="error" sx={{ mb: 3, width: '100%' }}>
+                <Alert 
+                  severity="error" 
+                  sx={{ 
+                    mb: 3, 
+                    width: '100%',
+                    borderRadius: 2
+                  }}
+                >
                   {error}
                 </Alert>
               )}
@@ -165,31 +178,47 @@ const Login = () => {
                   sx={{ mb: 3 }}
                 />
                 
-                <Grid container justifyContent="flex-end">
-                  <Grid item>
-                    <MuiLink component={Link} to="#" variant="body2">
-                      Forgot password?
-                    </MuiLink>
-                  </Grid>
-                </Grid>
-                
                 <Button
                   type="submit"
                   fullWidth
                   variant="contained"
                   size="large"
                   sx={{ 
-                    mt: 3, 
+                    mt: 4, 
                     mb: 3, 
-                    py: 1.5, 
-                    borderRadius: '8px',
-                    fontSize: '1rem',
+                    py: 2,
+                    borderRadius: '12px',
+                    fontSize: '1.1rem',
                     fontWeight: 600,
-                    boxShadow: '0 4px 12px rgba(34, 197, 94, 0.2)'
+                    boxShadow: '0 4px 14px rgba(34, 197, 94, 0.3)',
+                    transition: 'all 0.2s ease-in-out',
+                    '&:hover': {
+                      transform: 'translateY(-2px)',
+                      boxShadow: '0 6px 20px rgba(34, 197, 94, 0.4)',
+                    }
                   }}
                 >
                   Login
                 </Button>
+
+                <Grid container justifyContent="center" sx={{ mt: 2 }}>
+                  <Grid item>
+                    <MuiLink 
+                      component={Link} 
+                      to="#" 
+                      variant="body2"
+                      sx={{
+                        color: 'text.secondary',
+                        textDecoration: 'none',
+                        '&:hover': {
+                          color: 'primary.main'
+                        }
+                      }}
+                    >
+                      Forgot password?
+                    </MuiLink>
+                  </Grid>
+                </Grid>
                 
                 <Box sx={{ mt: 2, textAlign: 'center' }}>
                   <Typography variant="body1">
@@ -213,5 +242,4 @@ const Login = () => {
   );
 };
 
-// Make sure the component is properly exported as default
 export default Login;

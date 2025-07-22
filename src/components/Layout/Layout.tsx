@@ -42,7 +42,7 @@ const drawerWidth = 260;
 const menuItems = [
   { text: 'Dashboard', icon: <Dashboard />, path: '/' },
   { text: 'Group Management', icon: <Group />, path: '/groups' },
-  { text: 'Student/Client Management', icon: <People />, path: '/clients' },
+  { text: 'Student/Client Management', icon: <People />, path: '/students' },
   { text: 'Fee Plans & Payment Requests', icon: <Receipt />, path: '/payments' }, // Updated path
   { text: 'Reminders', icon: <Notifications />, path: '/reminders' },
   { text: 'Receipts and Status', icon: <Receipt />, path: '/receipts' },
@@ -153,7 +153,7 @@ const Layout = ({ children }: LayoutProps) => {
   );
 
   return (
-    <Box sx={{ display: 'flex', width: '100vw', overflow: 'hidden' }}>
+    <Box sx={{ display: 'flex', minHeight: '100vh', width: '100vw', position: 'relative' }}>
       <BackgroundPattern />
       <AppBar
         position="fixed"
@@ -227,16 +227,21 @@ const Layout = ({ children }: LayoutProps) => {
           width: { md: `calc(100% - ${drawerWidth}px)` },
           maxWidth: { md: `calc(100% - ${drawerWidth}px)` },
           minHeight: '100vh',
-          bgcolor: '#f5f7fa',
+          bgcolor: 'transparent',
           p: { xs: 2, sm: 3 },
           overflowX: 'hidden',
+          position: 'relative',
+          zIndex: 1,
         }}
       >
         <Toolbar />
         <Fade in timeout={500}>
           <Box sx={{ 
             width: '100%',
-            overflowX: 'hidden'
+            minHeight: 'calc(100vh - 88px)',
+            overflowX: 'hidden',
+            position: 'relative',
+            zIndex: 2
           }}>
             {children}
           </Box>

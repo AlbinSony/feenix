@@ -9,14 +9,17 @@ const BackgroundPattern = () => {
         left: 0,
         right: 0,
         bottom: 0,
-        zIndex: 0,
-        opacity: 0.4,
+        zIndex: -1, // Changed from 0 to -1 to stay behind content
+        opacity: 0.5,
         pointerEvents: 'none',
         background: `
-          radial-gradient(circle, #e5e7eb 1px, transparent 1px) 0 0 / 20px 20px,
-          radial-gradient(circle, #e5e7eb 1px, transparent 1px) 10px 10px / 20px 20px
+          linear-gradient(135deg, #f5f7fa 25%, transparent 25%) -10px 0,
+          linear-gradient(225deg, #f5f7fa 25%, transparent 25%) -10px 0,
+          linear-gradient(315deg, #f5f7fa 25%, transparent 25%),
+          linear-gradient(45deg, #f5f7fa 25%, transparent 25%)
         `,
-        backgroundColor: '#f9fafb',
+        backgroundColor: '#ffffff',
+        backgroundSize: '20px 20px',
       }}
     />
   );

@@ -26,13 +26,13 @@ import {
   Add,
   Edit,
   Delete,
-  CheckCircle,
-  Warning,
-  Schedule,
   Receipt,
   AttachMoney,
   Search,
 } from '@mui/icons-material';
+import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
+import { DatePicker, LocalizationProvider } from '@mui/x-date-pickers';
+import { format } from 'date-fns';
 
 // Mock data for fee plans
 const feePlans = [
@@ -54,27 +54,50 @@ const feePlans = [
   },
 ];
 
-// Mock data for payment records
+// Enhanced mock data
+const groups = [
+  { id: 1, name: 'Batch A' },
+  { id: 2, name: 'Batch B' },
+  { id: 3, name: 'Batch C' },
+];
+
+const students = [
+  { id: 1, name: 'Aarav Kumar', group: 'Batch A' },
+  { id: 2, name: 'Zara Patel', group: 'Batch A' },
+  { id: 3, name: 'Riya Singh', group: 'Batch B' },
+  { id: 4, name: 'Arjun Sharma', group: 'Batch B' },
+  { id: 5, name: 'Anaya Mehta', group: 'Batch C' },
+];
+
 const paymentRecords = [
   {
     id: 1,
-    studentName: 'John Doe',
-    feeType: 'Basic Monthly Fee',
-    amount: 50,
-    dueDate: '2024-02-15',
-    status: 'Paid',
-    paidDate: '2024-02-10',
-    method: 'Credit Card',
+    student: "Aarav Kumar",
+    group: "Batch A",
+    amount: 1500,
+    dueDate: "2024-06-10",
+    status: "Unpaid",
+    feeType: "Monthly Fee",
   },
   {
     id: 2,
-    studentName: 'Jane Smith',
-    feeType: 'Registration Fee',
-    amount: 100,
-    dueDate: '2024-02-01',
-    status: 'Overdue',
-    paidDate: '-',
-    method: '-',
+    student: "Zara Patel",
+    group: "Batch A",
+    amount: 1500,
+    dueDate: "2024-06-10",
+    status: "Paid",
+    paidDate: "2024-06-08",
+    method: "Credit Card",
+    feeType: "Monthly Fee",
+  },
+  {
+    id: 3,
+    student: "Riya Singh",
+    group: "Batch B",
+    amount: 2000,
+    dueDate: "2024-06-15",
+    status: "Overdue",
+    feeType: "Registration Fee",
   },
 ];
 
@@ -82,6 +105,10 @@ const Payments = () => {
   const [tabValue, setTabValue] = useState(0);
   const [openNewFee, setOpenNewFee] = useState(false);
   const [openPaymentUpdate, setOpenPaymentUpdate] = useState(false);
+  const [openAssignFee, setOpenAssignFee] = useState(false);
+  const [selectedGroup, setSelectedGroup] = useState('');
+  const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
+  const [dueDate, setDueDate] = useState<Date | null>(null);
 
   const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue);
@@ -107,6 +134,37 @@ const Payments = () => {
           Manage fee plans and track payment records efficiently
         </Typography>
       </Card>
+
+      <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
+        <Button
+          variant="contained"
+          startIcon={<Add />}
+          onClick={() => setOpenAssignFee(true)}
+          sx={{
+            px: 3,
+            py: 1.5,
+            borderRadius: 2,
+            boxShadow: 2,
+            background: 'linear-gradient(45deg, #22c55e, #16a34a)',
+            '&:hover': {
+              background: 'linear-gradient(45deg, #16a34a, #15803d)',
+            },
+          }}
+        >
+          Assign New Fee
+        </Button>
+        <Button
+          variant="outlined"
+          startIcon={<Receipt />}
+          sx={{
+            px: 3,
+            py: 1.5,
+            borderRadius: 2,
+          }}
+        >
+          Generate Reports
+        </Button>
+      </Box>
 
       {/* Enhanced Tabs Section */}
       <Card
@@ -253,27 +311,27 @@ const Payments = () => {
             />
           </Box>
 
-          <TableContainer>
+          <TableContainer component={Card} sx={{ mt: 3, borderRadius: 2 }}>
             <Table>
               <TableHead>
                 <TableRow>
-                  <TableCell>Student Name</TableCell>
+                  <TableCell>Student</TableCell>
+                  <TableCell>Group</TableCell>
                   <TableCell>Fee Type</TableCell>
                   <TableCell>Amount</TableCell>
                   <TableCell>Due Date</TableCell>
                   <TableCell>Status</TableCell>
-                  <TableCell>Paid Date</TableCell>
-                  <TableCell>Method</TableCell>
                   <TableCell>Actions</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {paymentRecords.map((record) => (
                   <TableRow key={record.id}>
-                    <TableCell>{record.studentName}</TableCell>
+                    <TableCell>{record.student}</TableCell>
+                    <TableCell>{record.group}</TableCell>
                     <TableCell>{record.feeType}</TableCell>
-                    <TableCell>${record.amount}</TableCell>
-                    <TableCell>{record.dueDate}</TableCell>
+                    <TableCell>₹{record.amount}</TableCell>
+                    <TableCell>{format(new Date(record.dueDate), 'PP')}</TableCell>
                     <TableCell>
                       <Chip
                         label={record.status}
@@ -285,26 +343,17 @@ const Payments = () => {
                             : 'warning'
                         }
                         size="small"
-                        icon={
-                          record.status === 'Paid' ? (
-                            <CheckCircle />
-                          ) : record.status === 'Overdue' ? (
-                            <Warning />
-                          ) : (
-                            <Schedule />
-                          )
-                        }
                       />
                     </TableCell>
-                    <TableCell>{record.paidDate}</TableCell>
-                    <TableCell>{record.method}</TableCell>
                     <TableCell>
                       <Button
                         size="small"
-                        variant="outlined"
+                        variant="contained"
+                        color={record.status === 'Paid' ? 'success' : 'primary'}
                         onClick={() => setOpenPaymentUpdate(true)}
+                        disabled={record.status === 'Paid'}
                       >
-                        Update Status
+                        {record.status === 'Paid' ? 'Paid' : 'Mark as Paid'}
                       </Button>
                     </TableCell>
                   </TableRow>
@@ -420,6 +469,114 @@ const Payments = () => {
         <DialogActions>
           <Button onClick={() => setOpenPaymentUpdate(false)}>Cancel</Button>
           <Button variant="contained">Update</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Assign Fee Dialog */}
+      <Dialog
+        open={openAssignFee}
+        onClose={() => setOpenAssignFee(false)}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 3,
+            boxShadow: 3,
+          },
+        }}
+      >
+        <DialogTitle>
+          <Typography variant="h6" fontWeight="bold">
+            Assign New Fee
+          </Typography>
+        </DialogTitle>
+        <DialogContent>
+          <Grid container spacing={3} sx={{ mt: 1 }}>
+            <Grid item xs={12}>
+              <TextField
+                select
+                fullWidth
+                label="Select Group"
+                value={selectedGroup}
+                onChange={(e) => setSelectedGroup(e.target.value)}
+              >
+                {groups.map((group) => (
+                  <MenuItem key={group.id} value={group.name}>
+                    {group.name}
+                  </MenuItem>
+                ))}
+              </TextField>
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                select
+                fullWidth
+                label="Select Students"
+                SelectProps={{ multiple: true }}
+                value={selectedStudents}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setSelectedStudents(typeof value === 'string' ? value.split(',') : value);
+                }}
+              >
+                {students
+                  .filter((s) => !selectedGroup || s.group === selectedGroup)
+                  .map((student) => (
+                    <MenuItem key={student.id} value={student.name}>
+                      {student.name}
+                    </MenuItem>
+                  ))}
+              </TextField>
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Amount"
+                type="number"
+                InputProps={{
+                  startAdornment: <Typography color="textSecondary">₹</Typography>,
+                }}
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <LocalizationProvider dateAdapter={AdapterDateFns}>
+                <DatePicker
+                  label="Due Date"
+                  value={dueDate}
+                  onChange={(newValue) => setDueDate(newValue)}
+                  slotProps={{
+                    textField: { fullWidth: true }
+                  }}
+                />
+              </LocalizationProvider>
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                select
+                fullWidth
+                label="Frequency"
+                defaultValue="one-time"
+              >
+                <MenuItem value="monthly">Monthly</MenuItem>
+                <MenuItem value="one-time">One-Time</MenuItem>
+              </TextField>
+            </Grid>
+          </Grid>
+        </DialogContent>
+        <DialogActions sx={{ p: 3 }}>
+          <Button onClick={() => setOpenAssignFee(false)}>Cancel</Button>
+          <Button
+            variant="contained"
+            sx={{
+              px: 3,
+              background: 'linear-gradient(45deg, #22c55e, #16a34a)',
+              '&:hover': {
+                background: 'linear-gradient(45deg, #16a34a, #15803d)',
+              },
+            }}
+          >
+            Assign Fee
+          </Button>
         </DialogActions>
       </Dialog>
     </Box>
