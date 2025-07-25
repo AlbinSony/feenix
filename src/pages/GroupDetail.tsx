@@ -26,6 +26,14 @@ import {
   useTheme,
   alpha,
   InputAdornment,
+  CircularProgress,
+  Alert,
+  Menu,
+  MenuItem,
+  ListItemIcon,
+  ListItemText,
+  Snackbar,
+  Tooltip,
 } from '@mui/material';
 import {
   Timeline,
@@ -52,8 +60,11 @@ import {
   CheckCircleOutline as CheckCircleIcon,
   PendingOutlined as PendingIcon,
   Notifications as NotificationsIcon,
+  MoreVert as MoreVertIcon,
 } from '@mui/icons-material';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import { groupApi, Group } from '../services/groupApi';
+import { useAuth } from '../context/AuthContext';
 
 interface Member {
   id: number;
@@ -96,75 +107,32 @@ const TabPanel = (props: TabPanelProps) => {
   );
 };
 
-const initializeGroupDetails = (locationState: any) => {
-  if (locationState?.group) {
-    return {
-      name: locationState.group.name,
-      description: locationState.group.description || 'Monthly payment group for regular members',
-      members: locationState.group.students || 0,
-      fees: locationState.group.fee || 0,
-      frequency: locationState.group.frequency || 'Monthly',
-      collected: locationState.group.collected || 0,
-      dues: locationState.group.dues || 0,
-      createdDate: locationState.group.createdDate || '2024-01-01',
-      lastPaymentDate: locationState.group.lastPaymentDate || '',
-      nextDueDate: locationState.group.nextDueDate || '',
-    };
-  }
-  return {
-    name: 'Loading...',
-    description: '',
-    members: 0,
-    fees: 0,
-    frequency: 'Monthly',
-    collected: 0,
-    dues: 0,
-    createdDate: '',
-    lastPaymentDate: '',
-    nextDueDate: '',
-  };
-};
-
 const GroupDetail = () => {
   const theme = useTheme();
-  useParams();
+  const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
+  const { isAuthenticated } = useAuth();
   const [tabValue, setTabValue] = useState(0);
   const [openEditGroup, setOpenEditGroup] = useState(false);
   const [openAddMember, setOpenAddMember] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
 
-  const [groupDetails, setGroupDetails] = useState(initializeGroupDetails(location.state));
+  const [groupDetails, setGroupDetails] = useState<Group | null>(null);
   const [editedGroupDetails, setEditedGroupDetails] = useState({
-    name: groupDetails.name,
-    description: groupDetails.description,
+    name: '',
+    description: '',
+    fee: 0,
+    frequency: 'Monthly' as 'Monthly' | 'One-Time',
   });
 
-  useEffect(() => {
-    setEditedGroupDetails({
-      name: groupDetails.name,
-      description: groupDetails.description,
-    });
-  }, [groupDetails]);
-
-  useEffect(() => {
-    if (!location.state?.group && groupDetails.name === 'Loading...') {
-      navigate('/groups');
-    }
-  }, [location.state, navigate, groupDetails.name]);
-
-  const [members, setMembers] = useState<Member[]>([
-    {
-      id: 1,
-      name: 'John Doe',
-      email: 'john@example.com',
-      phone: '+91 9876543210',
-      joinDate: '2024-01-15',
-      status: 'active',
-    },
-  ]);
-
+  const [members] = useState<Member[]>([]);
   const [newMemberData, setNewMemberData] = useState({
     name: '',
     email: '',
@@ -174,38 +142,87 @@ const GroupDetail = () => {
   const [timelineEvents] = useState<PaymentEvent[]>([
     {
       id: 1,
-      type: 'payment',
-      date: '2024-02-15',
-      description: 'Monthly fee collected',
-      amount: 1500,
-      status: 'completed',
-    },
-    {
-      id: 2,
-      type: 'reminder',
-      date: '2024-02-10',
-      description: 'Payment reminder sent to all members',
-    },
-    {
-      id: 3,
       type: 'member_added',
-      date: '2024-02-01',
-      description: 'New member John Doe added to group',
+      date: new Date().toISOString().split('T')[0],
+      description: 'Group created successfully',
     },
   ]);
 
+  useEffect(() => {
+    console.log('GroupDetail useEffect triggered', { isAuthenticated, id, locationState: location.state });
+    if (isAuthenticated && id) {
+      fetchGroupDetails();
+    } else if (!isAuthenticated) {
+      console.log('User not authenticated, redirecting to login');
+      navigate('/login');
+    }
+  }, [isAuthenticated, id, navigate]);
+
+  useEffect(() => {
+    if (groupDetails) {
+      setEditedGroupDetails({
+        name: groupDetails.name,
+        description: groupDetails.description,
+        fee: groupDetails.fee,
+        frequency: groupDetails.frequency,
+      });
+    }
+  }, [groupDetails]);
+
+  const fetchGroupDetails = async () => {
+    if (!id) {
+      navigate('/groups');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError('');
+
+      // Try to get from location state first, then from API
+      if (location.state?.group) {
+        console.log('Using group from location state:', location.state.group);
+        setGroupDetails(location.state.group);
+        setLoading(false);
+      } else {
+        console.log('Fetching group from API for id:', id);
+        const group = await groupApi.getById(id);
+        console.log('Received group from API:', group);
+        setGroupDetails(group);
+      }
+    } catch (err: any) {
+      console.error('Error fetching group:', err);
+      setError(err.message || 'Failed to load group details');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue);
   };
 
-  const handleSaveGroupDetails = () => {
-    setGroupDetails(prev => ({
-      ...prev,
-      name: editedGroupDetails.name,
-      description: editedGroupDetails.description,
-    }));
-    setOpenEditGroup(false);
+  const handleSaveGroupDetails = async () => {
+    if (!groupDetails || !id) return;
+
+    try {
+      setSaving(true);
+      setError('');
+
+      const updatedGroup = await groupApi.update(id, {
+        name: editedGroupDetails.name,
+        description: editedGroupDetails.description,
+        fee: editedGroupDetails.fee,
+        frequency: editedGroupDetails.frequency,
+      });
+
+      setGroupDetails(updatedGroup);
+      setOpenEditGroup(false);
+    } catch (err: any) {
+      setError(err.message || 'Failed to update group');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleAddMember = () => {
@@ -218,19 +235,78 @@ const GroupDetail = () => {
       status: 'active',
     };
 
-    setMembers(prev => [...prev, newMember]);
     setNewMemberData({ name: '', email: '', phone: '' });
     setOpenAddMember(false);
   };
 
   const handleDeleteMember = (memberId: number) => {
-    setMembers(members.filter(member => member.id !== memberId));
+    console.log('Delete member:', memberId);
   };
+
+  const handleMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleMenuClose = () => {
+    setAnchorEl(null);
+  };
+
+  const handleDeleteGroup = async () => {
+    if (!groupDetails || !id) return;
+
+    try {
+      setDeleteLoading(true);
+      await groupApi.delete(id);
+      setSuccessMessage('Group deleted successfully');
+      handleMenuClose();
+
+      // Navigate back to groups list after successful deletion
+      setTimeout(() => {
+        navigate('/groups');
+      }, 1500);
+    } catch (err: any) {
+      setError(err.message || 'Failed to delete group');
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
+        <CircularProgress size={40} />
+        <Typography variant="body1" sx={{ ml: 2 }}>Loading group details...</Typography>
+      </Box>
+    );
+  }
+
+  if (!groupDetails) {
+    return (
+      <Box>
+        <Alert severity="error">
+          Group not found. Please go back and try again.
+        </Alert>
+        <Button
+          startIcon={<ArrowBackIcon />}
+          onClick={() => navigate('/groups')}
+          sx={{ mt: 2 }}
+        >
+          Back to Groups
+        </Button>
+      </Box>
+    );
+  }
 
   return (
     <Box>
+      {error && (
+        <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError('')}>
+          {error}
+        </Alert>
+      )}
+
       <Box display="flex" alignItems="center" mb={3}>
-        <IconButton 
+        <IconButton
           onClick={() => navigate('/groups')}
           sx={{ mr: 2 }}
           aria-label="back to groups"
@@ -255,17 +331,31 @@ const GroupDetail = () => {
                 {groupDetails.name}
               </Typography>
               <Typography variant="subtitle1" color="text.secondary">
-                {groupDetails.members} members · ₹{groupDetails.fees}/{groupDetails.frequency}
+                {groupDetails.students} members · ₹{groupDetails.fee}/{groupDetails.frequency}
               </Typography>
             </Box>
           </Box>
-          <Button
-            variant="contained"
-            startIcon={<EditIcon />}
-            onClick={() => setOpenEditGroup(true)}
-          >
-            Edit Group
-          </Button>
+          <Box display="flex" gap={1}>
+            <Button
+              variant="contained"
+              startIcon={<EditIcon />}
+              onClick={() => setOpenEditGroup(true)}
+            >
+              Edit Group
+            </Button>
+            <Tooltip title="More actions">
+              <IconButton
+                onClick={handleMenuOpen}
+                sx={{
+                  border: 1,
+                  borderColor: 'divider',
+                  '&:hover': { borderColor: 'primary.main' }
+                }}
+              >
+                <MoreVertIcon />
+              </IconButton>
+            </Tooltip>
+          </Box>
         </Box>
       </Box>
 
@@ -278,7 +368,7 @@ const GroupDetail = () => {
                   <PersonIcon />
                 </Avatar>
                 <Box>
-                  <Typography variant="h6">{groupDetails.members}</Typography>
+                  <Typography variant="h6">{groupDetails.students}</Typography>
                   <Typography variant="body2">Total Members</Typography>
                 </Box>
               </Box>
@@ -328,7 +418,7 @@ const GroupDetail = () => {
                 flex: 0,
                 padding: 0,
               },
-              px: 0
+              px: 0,
             }}
           >
             {timelineEvents.map((event) => (
@@ -338,7 +428,7 @@ const GroupDetail = () => {
                     {new Date(event.date).toLocaleDateString('en-US', {
                       year: 'numeric',
                       month: 'short',
-                      day: 'numeric'
+                      day: 'numeric',
                     })}
                   </Typography>
                 </TimelineOppositeContent>
@@ -346,44 +436,52 @@ const GroupDetail = () => {
                   <TimelineDot
                     sx={{
                       boxShadow: 1,
-                      bgcolor: event.type === 'payment' 
-                        ? 'success.main'
-                        : event.type === 'reminder' 
-                          ? 'warning.main' 
+                      bgcolor:
+                        event.type === 'payment'
+                          ? 'success.main'
+                          : event.type === 'reminder'
+                          ? 'warning.main'
                           : 'primary.main',
-                      p: 1
+                      p: 1,
                     }}
                   >
-                    {event.type === 'payment' ? <RupeeIcon /> :
-                     event.type === 'reminder' ? <NotificationsIcon /> :
-                     <PersonIcon />}
+                    {event.type === 'payment' ? (
+                      <RupeeIcon />
+                    ) : event.type === 'reminder' ? (
+                      <NotificationsIcon />
+                    ) : (
+                      <PersonIcon />
+                    )}
                   </TimelineDot>
                   <TimelineConnector sx={{ bgcolor: 'divider' }} />
                 </TimelineSeparator>
                 <TimelineContent sx={{ py: '12px', px: 2 }}>
-                  <Card variant="outlined" sx={{ 
-                    p: 2, 
-                    bgcolor: alpha(
-                      event.type === 'payment' 
-                        ? theme.palette.success.main
-                        : event.type === 'reminder' 
+                  <Card
+                    variant="outlined"
+                    sx={{
+                      p: 2,
+                      bgcolor: alpha(
+                        event.type === 'payment'
+                          ? theme.palette.success.main
+                          : event.type === 'reminder'
                           ? theme.palette.warning.main
                           : theme.palette.primary.main,
-                      0.05
-                    )
-                  }}>
+                        0.05
+                      ),
+                    }}
+                  >
                     <Typography variant="subtitle1" fontWeight={500}>
                       {event.description}
                     </Typography>
                     {event.amount && (
-                      <Typography 
-                        variant="body2" 
-                        color="text.secondary" 
-                        sx={{ 
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        sx={{
                           mt: 1,
                           display: 'flex',
                           alignItems: 'center',
-                          gap: 0.5
+                          gap: 0.5,
                         }}
                       >
                         <RupeeIcon fontSize="small" />
@@ -394,14 +492,20 @@ const GroupDetail = () => {
                       <Box sx={{ mt: 1 }}>
                         <Chip
                           size="small"
-                          icon={event.status === 'completed' ? <CheckCircleIcon /> : <PendingIcon />}
+                          icon={
+                            event.status === 'completed' ? (
+                              <CheckCircleIcon />
+                            ) : (
+                              <PendingIcon />
+                            )
+                          }
                           label={event.status}
                           color={event.status === 'completed' ? 'success' : 'warning'}
-                          sx={{ 
+                          sx={{
                             borderRadius: 1,
                             '& .MuiChip-icon': {
-                              fontSize: 16
-                            }
+                              fontSize: 16,
+                            },
                           }}
                         />
                       </Box>
@@ -461,40 +565,50 @@ const GroupDetail = () => {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {members.map((member) => (
-                    <TableRow key={member.id}>
-                      <TableCell>
-                        <Box display="flex" alignItems="center">
-                          <Avatar sx={{ mr: 2, width: 32, height: 32 }}>
-                            {member.name.charAt(0)}
-                          </Avatar>
-                          {member.name}
-                        </Box>
-                      </TableCell>
-                      <TableCell>{member.email}</TableCell>
-                      <TableCell>{member.phone}</TableCell>
-                      <TableCell>{member.joinDate}</TableCell>
-                      <TableCell>
-                        <Chip
-                          label={member.status}
-                          color={member.status === 'active' ? 'success' : 'default'}
-                          size="small"
-                        />
-                      </TableCell>
-                      <TableCell align="right">
-                        <IconButton size="small" color="primary">
-                          <EditIcon fontSize="small" />
-                        </IconButton>
-                        <IconButton
-                          size="small"
-                          color="error"
-                          onClick={() => handleDeleteMember(member.id)}
-                        >
-                          <DeleteIcon fontSize="small" />
-                        </IconButton>
+                  {members.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} align="center" sx={{ py: 4 }}>
+                        <Typography variant="body2" color="text.secondary">
+                          No members added yet. Click "Add Member" to get started.
+                        </Typography>
                       </TableCell>
                     </TableRow>
-                  ))}
+                  ) : (
+                    members.map((member) => (
+                      <TableRow key={member.id}>
+                        <TableCell>
+                          <Box display="flex" alignItems="center">
+                            <Avatar sx={{ mr: 2, width: 32, height: 32 }}>
+                              {member.name.charAt(0)}
+                            </Avatar>
+                            {member.name}
+                          </Box>
+                        </TableCell>
+                        <TableCell>{member.email}</TableCell>
+                        <TableCell>{member.phone}</TableCell>
+                        <TableCell>{member.joinDate}</TableCell>
+                        <TableCell>
+                          <Chip
+                            label={member.status}
+                            color={member.status === 'active' ? 'success' : 'default'}
+                            size="small"
+                          />
+                        </TableCell>
+                        <TableCell align="right">
+                          <IconButton size="small" color="primary">
+                            <EditIcon fontSize="small" />
+                          </IconButton>
+                          <IconButton
+                            size="small"
+                            color="error"
+                            onClick={() => handleDeleteMember(member.id)}
+                          >
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
                 </TableBody>
               </Table>
             </TableContainer>
@@ -511,7 +625,13 @@ const GroupDetail = () => {
                       fullWidth
                       label="Payment Amount"
                       type="number"
-                      value={groupDetails.fees}
+                      value={editedGroupDetails.fee}
+                      onChange={(e) =>
+                        setEditedGroupDetails((prev) => ({
+                          ...prev,
+                          fee: parseFloat(e.target.value) || 0,
+                        }))
+                      }
                       InputProps={{
                         startAdornment: <InputAdornment position="start">₹</InputAdornment>,
                       }}
@@ -522,14 +642,19 @@ const GroupDetail = () => {
                       fullWidth
                       label="Payment Cycle"
                       select
-                      value={groupDetails.frequency}
+                      value={editedGroupDetails.frequency}
+                      onChange={(e) =>
+                        setEditedGroupDetails((prev) => ({
+                          ...prev,
+                          frequency: e.target.value as 'Monthly' | 'One-Time',
+                        }))
+                      }
                       SelectProps={{
                         native: true,
                       }}
                     >
                       <option value="Monthly">Monthly</option>
-                      <option value="Quarterly">Quarterly</option>
-                      <option value="Yearly">Yearly</option>
+                      <option value="One-Time">One-Time</option>
                     </TextField>
                   </Grid>
                 </Grid>
@@ -547,7 +672,13 @@ const GroupDetail = () => {
                     <TextField
                       fullWidth
                       label="Group Name"
-                      value={groupDetails.name}
+                      value={editedGroupDetails.name}
+                      onChange={(e) =>
+                        setEditedGroupDetails((prev) => ({
+                          ...prev,
+                          name: e.target.value,
+                        }))
+                      }
                     />
                   </Grid>
                   <Grid item xs={12}>
@@ -556,7 +687,13 @@ const GroupDetail = () => {
                       label="Description"
                       multiline
                       rows={4}
-                      value={groupDetails.description}
+                      value={editedGroupDetails.description}
+                      onChange={(e) =>
+                        setEditedGroupDetails((prev) => ({
+                          ...prev,
+                          description: e.target.value,
+                        }))
+                      }
                     />
                   </Grid>
                 </Grid>
@@ -566,6 +703,50 @@ const GroupDetail = () => {
         </TabPanel>
       </Card>
 
+      {/* Action Menu */}
+      <Menu
+        anchorEl={anchorEl}
+        open={Boolean(anchorEl)}
+        onClose={handleMenuClose}
+        transformOrigin={{ horizontal: 'right', vertical: 'top' }}
+        anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+      >
+        <MenuItem
+          onClick={() => {
+            setOpenEditGroup(true);
+            handleMenuClose();
+          }}
+        >
+          <ListItemIcon>
+            <EditIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Edit Group</ListItemText>
+        </MenuItem>
+        <MenuItem
+          onClick={handleDeleteGroup}
+          disabled={deleteLoading}
+          sx={{ color: 'error.main' }}
+        >
+          <ListItemIcon>
+            {deleteLoading ? (
+              <CircularProgress size={20} color="error" />
+            ) : (
+              <DeleteIcon fontSize="small" color="error" />
+            )}
+          </ListItemIcon>
+          <ListItemText>Delete Group</ListItemText>
+        </MenuItem>
+      </Menu>
+
+      {/* Success Snackbar */}
+      <Snackbar
+        open={!!successMessage}
+        autoHideDuration={4000}
+        onClose={() => setSuccessMessage('')}
+        message={successMessage}
+      />
+
+      {/* Edit Group Dialog */}
       <Dialog
         open={openEditGroup}
         onClose={() => setOpenEditGroup(false)}
@@ -586,11 +767,14 @@ const GroupDetail = () => {
               <TextField
                 fullWidth
                 label="Group Name"
+                required
                 value={editedGroupDetails.name}
-                onChange={(e) => setEditedGroupDetails(prev => ({
-                  ...prev,
-                  name: e.target.value
-                }))}
+                onChange={(e) =>
+                  setEditedGroupDetails((prev) => ({
+                    ...prev,
+                    name: e.target.value,
+                  }))
+                }
               />
             </Grid>
             <Grid item xs={12}>
@@ -600,11 +784,51 @@ const GroupDetail = () => {
                 multiline
                 rows={4}
                 value={editedGroupDetails.description}
-                onChange={(e) => setEditedGroupDetails(prev => ({
-                  ...prev,
-                  description: e.target.value
-                }))}
+                onChange={(e) =>
+                  setEditedGroupDetails((prev) => ({
+                    ...prev,
+                    description: e.target.value,
+                  }))
+                }
               />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Fee Amount"
+                type="number"
+                required
+                value={editedGroupDetails.fee}
+                onChange={(e) =>
+                  setEditedGroupDetails((prev) => ({
+                    ...prev,
+                    fee: parseFloat(e.target.value) || 0,
+                  }))
+                }
+                InputProps={{
+                  startAdornment: <InputAdornment position="start">₹</InputAdornment>,
+                }}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Payment Frequency"
+                select
+                value={editedGroupDetails.frequency}
+                onChange={(e) =>
+                  setEditedGroupDetails((prev) => ({
+                    ...prev,
+                    frequency: e.target.value as 'Monthly' | 'One-Time',
+                  }))
+                }
+                SelectProps={{
+                  native: true,
+                }}
+              >
+                <option value="Monthly">Monthly</option>
+                <option value="One-Time">One-Time</option>
+              </TextField>
             </Grid>
           </Grid>
         </DialogContent>
@@ -612,14 +836,16 @@ const GroupDetail = () => {
           <Button onClick={() => setOpenEditGroup(false)}>Cancel</Button>
           <Button
             variant="contained"
-            startIcon={<SaveIcon />}
+            startIcon={saving ? <CircularProgress size={16} /> : <SaveIcon />}
             onClick={handleSaveGroupDetails}
+            disabled={saving || !editedGroupDetails.name.trim() || editedGroupDetails.fee <= 0}
           >
-            Save Changes
+            {saving ? 'Saving...' : 'Save Changes'}
           </Button>
         </DialogActions>
       </Dialog>
 
+      {/* Add Member Dialog */}
       <Dialog
         open={openAddMember}
         onClose={() => setOpenAddMember(false)}
@@ -642,10 +868,12 @@ const GroupDetail = () => {
                 label="Name"
                 required
                 value={newMemberData.name}
-                onChange={(e) => setNewMemberData(prev => ({
-                  ...prev,
-                  name: e.target.value
-                }))}
+                onChange={(e) =>
+                  setNewMemberData((prev) => ({
+                    ...prev,
+                    name: e.target.value,
+                  }))
+                }
               />
             </Grid>
             <Grid item xs={12}>
@@ -655,10 +883,12 @@ const GroupDetail = () => {
                 type="email"
                 required
                 value={newMemberData.email}
-                onChange={(e) => setNewMemberData(prev => ({
-                  ...prev,
-                  email: e.target.value
-                }))}
+                onChange={(e) =>
+                  setNewMemberData((prev) => ({
+                    ...prev,
+                    email: e.target.value,
+                  }))
+                }
               />
             </Grid>
             <Grid item xs={12}>
@@ -667,10 +897,12 @@ const GroupDetail = () => {
                 label="Phone"
                 required
                 value={newMemberData.phone}
-                onChange={(e) => setNewMemberData(prev => ({
-                  ...prev,
-                  phone: e.target.value
-                }))}
+                onChange={(e) =>
+                  setNewMemberData((prev) => ({
+                    ...prev,
+                    phone: e.target.value,
+                  }))
+                }
               />
             </Grid>
           </Grid>

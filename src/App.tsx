@@ -42,7 +42,7 @@ function App() {
                   </Layout>
                 </ProtectedRoute>
               } />
-              <Route path="/groups/:groupId" element={
+              <Route path="/groups/:id" element={
                 <ProtectedRoute>
                   <Layout>
                     <GroupDetail />

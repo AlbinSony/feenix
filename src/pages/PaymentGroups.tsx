@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   Box, 
   Typography, 
@@ -22,6 +22,13 @@ import {
   FormControl,
   InputLabel,
   Divider,
+  CircularProgress,
+  Alert,
+  Menu,
+  MenuList,
+  ListItemIcon,
+  ListItemText,
+  Snackbar,
 } from '@mui/material';
 import { 
   Search as SearchIcon, 
@@ -31,67 +38,57 @@ import {
   CurrencyRupee as RupeeIcon,
   Group as GroupIcon,
   Assessment as AssessmentIcon,
+  Delete as DeleteIcon,
+  MoreVert as MoreVertIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
-
-interface Group {
-  id: number;
-  name: string;
-  description: string;
-  fee: number;
-  frequency: 'Monthly' | 'One-Time';
-  students: number;
-  collected: number;
-  dues: number;
-  lastPaymentDate: string;
-  nextDueDate: string;
-  status: 'active' | 'inactive';
-}
-
-// Enhanced mock data
-const initialGroups: Group[] = [
-  {
-    id: 1,
-    name: "Batch A (10th Std)",
-    description: "Morning Science Class",
-    fee: 1500,
-    frequency: "Monthly",
-    students: 12,
-    collected: 12000,
-    dues: 6000,
-    lastPaymentDate: "2024-02-15",
-    nextDueDate: "2024-03-15",
-    status: "active"
-  },
-  {
-    id: 2,
-    name: "Batch B (12th Commerce)",
-    description: "Evening Accounts Class",
-    fee: 2000,
-    frequency: "Monthly",
-    students: 15,
-    collected: 24000,
-    dues: 6000,
-    lastPaymentDate: "2024-02-10",
-    nextDueDate: "2024-03-10",
-    status: "active"
-  },
-];
+import { groupApi, Group } from '../services/groupApi';
+import { useAuth } from '../context/AuthContext';
 
 const PaymentGroups = () => {
   const theme = useTheme();
   const navigate = useNavigate();
-  const [groups, setGroups] = useState<Group[]>(initialGroups);
+  const { isAuthenticated } = useAuth();
+  const [groups, setGroups] = useState<Group[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [openNewGroupDialog, setOpenNewGroupDialog] = useState(false);
+  const [createLoading, setCreateLoading] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
   const [newGroupDescription, setNewGroupDescription] = useState('');
   const [newGroupFee, setNewGroupFee] = useState('');
   const [newGroupFrequency, setNewGroupFrequency] = useState<'Monthly' | 'One-Time'>('Monthly');
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [selectedGroup, setSelectedGroup] = useState<Group | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
+
+  // Fetch groups on component mount
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchGroups();
+    }
+  }, [isAuthenticated]);
+
+  const fetchGroups = async () => {
+    try {
+      setLoading(true);
+      setError('');
+      const data = await groupApi.getAll();
+      setGroups(data);
+    } catch (err: any) {
+      setError(err.message || 'Failed to load groups');
+      console.error('Error fetching groups:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Filter groups based on search query
   const filteredGroups = groups.filter(group => 
-    group.name.toLowerCase().includes(searchQuery.toLowerCase())
+    group.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    group.description.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   // Calculate summary statistics
@@ -99,38 +96,85 @@ const PaymentGroups = () => {
   const totalCollected = groups.reduce((sum, group) => sum + group.collected, 0);
   const totalDues = groups.reduce((sum, group) => sum + group.dues, 0);
 
-  const handleCreateNewGroup = () => {
-    if (!newGroupName.trim()) return;
+  const handleCreateNewGroup = async () => {
+    if (!newGroupName.trim() || !newGroupFee) return;
     
-    const newGroup = {
-      id: Date.now(),
-      name: newGroupName.trim(),
-      description: newGroupDescription.trim(),
-      fee: parseFloat(newGroupFee),
-      frequency: newGroupFrequency,
-      students: 0,
-      collected: 0,
-      dues: 0,
-      lastPaymentDate: '',
-      nextDueDate: '',
-      status: 'active' as 'active',
-    };
-    
-    setGroups([...groups, newGroup]);
-    setNewGroupName('');
-    setNewGroupDescription('');
-    setNewGroupFee('');
-    setNewGroupFrequency('Monthly');
-    setOpenNewGroupDialog(false);
+    try {
+      setCreateLoading(true);
+      const newGroupData = {
+        name: newGroupName.trim(),
+        description: newGroupDescription.trim(),
+        fee: parseFloat(newGroupFee),
+        frequency: newGroupFrequency,
+      };
+      
+      const createdGroup = await groupApi.create(newGroupData);
+      setGroups(prev => [...prev, createdGroup]);
+      
+      // Reset form
+      setNewGroupName('');
+      setNewGroupDescription('');
+      setNewGroupFee('');
+      setNewGroupFrequency('Monthly');
+      setOpenNewGroupDialog(false);
+    } catch (err: any) {
+      setError(err.message || 'Failed to create group');
+    } finally {
+      setCreateLoading(false);
+    }
   };
 
-  const handleViewGroup = (groupId: number) => {
-    const group = groups.find(g => g.id === groupId);
-    navigate(`/groups/${groupId}`, { state: { group } });
+  const handleViewGroup = (group: Group) => {
+    console.log('Navigating to group detail:', group._id, group);
+    navigate(`/groups/${group._id}`, { 
+      state: { group },
+      replace: false 
+    });
   };
+
+  const handleMenuOpen = (event: React.MouseEvent<HTMLElement>, group: Group) => {
+    event.stopPropagation();
+    setAnchorEl(event.currentTarget);
+    setSelectedGroup(group);
+  };
+
+  const handleMenuClose = () => {
+    setAnchorEl(null);
+    setSelectedGroup(null);
+  };
+
+  const handleDeleteGroup = async () => {
+    if (!selectedGroup) return;
+
+    try {
+      setDeleteLoading(true);
+      await groupApi.delete(selectedGroup._id);
+      setGroups(prev => prev.filter(group => group._id !== selectedGroup._id));
+      setSuccessMessage('Group deleted successfully');
+      handleMenuClose();
+    } catch (err: any) {
+      setError(err.message || 'Failed to delete group');
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
+        <CircularProgress size={40} />
+      </Box>
+    );
+  }
 
   return (
     <Box>
+      {error && (
+        <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError('')}>
+          {error}
+        </Alert>
+      )}
+
       {/* Summary Cards */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
         <Grid item xs={12} sm={6} md={4}>
@@ -209,10 +253,10 @@ const PaymentGroups = () => {
         }}
       />
 
-      {/* Enhanced Group Cards */}
+      {/* Group Cards */}
       <Grid container spacing={3}>
         {filteredGroups.map((group) => (
-          <Grid item xs={12} sm={6} md={4} key={group.id}>
+          <Grid item xs={12} sm={6} md={4} key={group._id}>
             <Card sx={{ 
               borderRadius: 3,
               cursor: 'pointer',
@@ -233,12 +277,19 @@ const PaymentGroups = () => {
                   }}>
                     {group.name.charAt(0)}
                   </Avatar>
-                  <Box>
+                  <Box flex={1}>
                     <Typography variant="h6">{group.name}</Typography>
                     <Typography variant="body2" color="text.secondary">
-                      {group.description}
+                      {group.description || 'No description'}
                     </Typography>
                   </Box>
+                  <IconButton
+                    size="small"
+                    onClick={(e) => handleMenuOpen(e, group)}
+                    sx={{ ml: 1 }}
+                  >
+                    <MoreVertIcon />
+                  </IconButton>
                 </Box>
                 
                 <Divider sx={{ my: 2 }} />
@@ -270,7 +321,7 @@ const PaymentGroups = () => {
                   fullWidth
                   variant="contained"
                   endIcon={<ArrowForwardIcon />}
-                  onClick={() => handleViewGroup(group.id)}
+                  onClick={() => handleViewGroup(group)}
                   sx={{ mt: 2 }}
                 >
                   View Details
@@ -281,7 +332,7 @@ const PaymentGroups = () => {
         ))}
       </Grid>
 
-      {filteredGroups.length === 0 && (
+      {filteredGroups.length === 0 && !loading && (
         <Box 
           sx={{ 
             p: 4, 
@@ -292,10 +343,10 @@ const PaymentGroups = () => {
           }}
         >
           <Typography variant="h6" color="text.secondary">
-            No groups found
+            {searchQuery ? 'No groups found' : 'No groups created yet'}
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-            Try a different search term or create a new group
+            {searchQuery ? 'Try a different search term or create a new group' : 'Create your first group to get started'}
           </Typography>
           <Button 
             variant="outlined" 
@@ -308,7 +359,54 @@ const PaymentGroups = () => {
         </Box>
       )}
 
-      {/* Enhanced New Group Dialog */}
+      {/* Action Menu */}
+      <Menu
+        anchorEl={anchorEl}
+        open={Boolean(anchorEl)}
+        onClose={handleMenuClose}
+        transformOrigin={{ horizontal: 'right', vertical: 'top' }}
+        anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+      >
+        <MenuList>
+          <MenuItem
+            onClick={() => {
+              if (selectedGroup) {
+                handleViewGroup(selectedGroup);
+              }
+              handleMenuClose();
+            }}
+          >
+            <ListItemIcon>
+              <ArrowForwardIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>View Details</ListItemText>
+          </MenuItem>
+          <MenuItem
+            onClick={handleDeleteGroup}
+            disabled={deleteLoading}
+            sx={{ color: 'error.main' }}
+          >
+            <ListItemIcon>
+              {deleteLoading ? (
+                <CircularProgress size={20} color="error" />
+              ) : (
+                <DeleteIcon fontSize="small" color="error" />
+              )}
+            </ListItemIcon>
+            <ListItemText>Delete Group</ListItemText>
+          </MenuItem>
+        </MenuList>
+      </Menu>
+
+      {/* Success Snackbar */}
+      <Snackbar
+        open={!!successMessage}
+        autoHideDuration={4000}
+        onClose={() => setSuccessMessage('')}
+        message={successMessage}
+      />
+
+      {/* New Group Dialog */}
       <Dialog open={openNewGroupDialog} onClose={() => setOpenNewGroupDialog(false)} maxWidth="sm" fullWidth>
         <DialogTitle>
           <Box display="flex" justifyContent="space-between" alignItems="center">
@@ -324,6 +422,7 @@ const PaymentGroups = () => {
               <TextField
                 label="Group Name"
                 fullWidth
+                required
                 value={newGroupName}
                 onChange={(e) => setNewGroupName(e.target.value)}
               />
@@ -343,6 +442,7 @@ const PaymentGroups = () => {
                 label="Fee Amount"
                 fullWidth
                 type="number"
+                required
                 value={newGroupFee}
                 onChange={(e) => setNewGroupFee(e.target.value)}
                 InputProps={{
@@ -372,9 +472,9 @@ const PaymentGroups = () => {
           <Button 
             onClick={handleCreateNewGroup} 
             variant="contained"
-            disabled={!newGroupName.trim()}
+            disabled={!newGroupName.trim() || !newGroupFee || createLoading}
           >
-            Create Group
+            {createLoading ? <CircularProgress size={20} /> : 'Create Group'}
           </Button>
         </DialogActions>
       </Dialog>
