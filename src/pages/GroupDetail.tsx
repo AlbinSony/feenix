@@ -226,14 +226,6 @@ const GroupDetail = () => {
   };
 
   const handleAddMember = () => {
-    const newMember: Member = {
-      id: Date.now(),
-      name: newMemberData.name,
-      email: newMemberData.email,
-      phone: newMemberData.phone,
-      joinDate: new Date().toISOString().split('T')[0],
-      status: 'active',
-    };
 
     setNewMemberData({ name: '', email: '', phone: '' });
     setOpenAddMember(false);
