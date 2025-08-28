@@ -9,7 +9,6 @@ import {
   InputAdornment,
   IconButton,
   Link as MuiLink,
-  Alert,
   Fade,
   Avatar,
   Grid,
@@ -19,6 +18,7 @@ import { Visibility, VisibilityOff, PersonAddAlt1 } from '@mui/icons-material';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import AuthBackground from '../components/AuthBackground';
+import toast from 'react-hot-toast';
 
 const Signup = () => {
   const [fullName, setFullName] = useState('');
@@ -27,7 +27,7 @@ const Signup = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [error, setError] = useState('');
+  const [, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const { register } = useAuth();
   const navigate = useNavigate();
@@ -51,14 +51,12 @@ const Signup = () => {
       }
 
       await register(fullName, email, password);
-      navigate('/login', { 
-        replace: true,
-        state: { message: 'Registration successful! Please login.' }
-      });
+      toast.success('Registration successful! Please login.');
+      navigate('/login', { replace: true });
       
     } catch (err: any) {
       console.error('Signup error:', err);
-      setError(err.message || 'Registration failed. Please try again.');
+      toast.error(err.message || 'Registration failed. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -131,12 +129,6 @@ const Signup = () => {
               >
                 Join Feenix and start managing payments efficiently
               </Typography>
-
-              {error && (
-                <Alert severity="error" sx={{ mb: 3, width: '100%' }}>
-                  {error}
-                </Alert>
-              )}
 
               <Box component="form" onSubmit={handleSubmit} sx={{ mt: 1, width: '100%' }}>
                 <Grid container spacing={2}>

@@ -30,7 +30,6 @@ import {
   MenuItem,
   ListItemIcon,
   ListItemText,
-  Snackbar,
   FormControl,
   InputLabel,
   Select,
@@ -52,6 +51,7 @@ import { format } from 'date-fns';
 import { studentApi, Student, CreateStudentData } from '../services/studentApi';
 import { groupApi, Group } from '../services/groupApi';
 import { useAuth } from '../context/AuthContext';
+import toast from 'react-hot-toast';
 
 const StudentManagement = () => {
   const theme = useTheme();
@@ -70,7 +70,6 @@ const StudentManagement = () => {
   const [createLoading, setCreateLoading] = useState(false);
   const [updateLoading, setUpdateLoading] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
-  const [successMessage, setSuccessMessage] = useState('');
 
   // Form data
   const [newStudentData, setNewStudentData] = useState<CreateStudentData>({
@@ -132,7 +131,7 @@ const StudentManagement = () => {
   // Handle create student
   const handleCreateStudent = async () => {
     if (!newStudentData.name.trim() || !newStudentData.phone.trim() || !newStudentData.group) {
-      setError('Please fill in all required fields');
+      toast.error('Please fill in all required fields');
       return;
     }
 
@@ -157,12 +156,12 @@ const StudentManagement = () => {
       });
       setStartDate(new Date());
       setOpenAddDialog(false);
-      setSuccessMessage('Student created successfully');
+      toast.success('Student created successfully');
       
       // Refresh students list
       fetchStudents();
     } catch (err: any) {
-      setError(err.message || 'Failed to create student');
+      toast.error(err.message || 'Failed to create student');
     } finally {
       setCreateLoading(false);
     }
@@ -170,6 +169,7 @@ const StudentManagement = () => {
 
   // Handle edit student
   const handleEditStudent = (student: Student) => {
+    console.log('Editing student:', student);
     setSelectedStudent(student);
     setEditStudentData({
       name: student.name,
@@ -179,12 +179,19 @@ const StudentManagement = () => {
       startDate: format(new Date(student.startDate), 'yyyy-MM-dd'),
     });
     setOpenEditDialog(true);
-    handleMenuClose();
+    // Don't call handleMenuClose() here to preserve selectedStudent
+    setAnchorEl(null);
   };
 
   const handleUpdateStudent = async () => {
-    if (!selectedStudent || !editStudentData.name.trim() || !editStudentData.phone.trim()) {
-      setError('Please fill in all required fields');
+    if (!selectedStudent) {
+      console.error('Update failed: No student selected');
+      toast.error('No student selected for update');
+      return;
+    }
+
+    if (!editStudentData.name.trim() || !editStudentData.phone.trim()) {
+      toast.error('Name and phone number are required');
       return;
     }
 
@@ -192,16 +199,25 @@ const StudentManagement = () => {
       setUpdateLoading(true);
       setError('');
       
-      await studentApi.update(selectedStudent._id, editStudentData);
+      // Debug log the selected student and update data
+      console.log('Updating student ID:', selectedStudent._id);
+      console.log('Update data:', editStudentData);
+      
+      // Call API with the entire editStudentData object
+      const updatedStudent = await studentApi.update(selectedStudent._id, editStudentData);
+      
+      // Update the student in the local state
+      setStudents(prevStudents => 
+        prevStudents.map(s => s._id === updatedStudent._id ? updatedStudent : s)
+      );
       
       setOpenEditDialog(false);
-      setSelectedStudent(null);
-      setSuccessMessage('Student updated successfully');
+      setSelectedStudent(null); // Clear only after successful update
+      toast.success('Student updated successfully');
       
-      // Refresh students list
-      fetchStudents();
     } catch (err: any) {
-      setError(err.message || 'Failed to update student');
+      console.error('Error in handleUpdateStudent:', err);
+      toast.error(err.message || 'Failed to update student');
     } finally {
       setUpdateLoading(false);
     }
@@ -213,14 +229,19 @@ const StudentManagement = () => {
 
     try {
       setDeleteLoading(true);
-      await studentApi.delete(selectedStudent._id);
-      setSuccessMessage('Student deleted successfully');
-      handleMenuClose();
       
-      // Refresh students list
-      fetchStudents();
+      // Call the delete API
+      await studentApi.delete(selectedStudent._id);
+      
+      // Remove student from local state
+      setStudents(prevStudents => 
+        prevStudents.filter(s => s._id !== selectedStudent._id)
+      );
+      
+      toast.success('Student deleted successfully');
+      handleMenuClose();
     } catch (err: any) {
-      setError(err.message || 'Failed to delete student');
+      toast.error(err.message || 'Failed to delete student');
     } finally {
       setDeleteLoading(false);
     }
@@ -234,6 +255,12 @@ const StudentManagement = () => {
 
   const handleMenuClose = () => {
     setAnchorEl(null);
+    // Don't clear selectedStudent here if edit dialog might open
+  };
+
+  // When closing the edit dialog, clear the selected student
+  const handleCloseEditDialog = () => {
+    setOpenEditDialog(false);
     setSelectedStudent(null);
   };
 
@@ -389,8 +416,8 @@ const StudentManagement = () => {
                         </IconButton>
                       </TableCell>
                     </TableRow>
-                  ))
-                )}
+                  )))
+                }
               </TableBody>
             </Table>
           </TableContainer>
@@ -525,14 +552,14 @@ const StudentManagement = () => {
         {/* Edit Student Dialog */}
         <Dialog
           open={openEditDialog}
-          onClose={() => setOpenEditDialog(false)}
+          onClose={handleCloseEditDialog}
           maxWidth="sm"
           fullWidth
         >
           <DialogTitle>
             <Box display="flex" justifyContent="space-between" alignItems="center">
               Edit Student
-              <IconButton onClick={() => setOpenEditDialog(false)}>
+              <IconButton onClick={handleCloseEditDialog}>
                 <CloseIcon />
               </IconButton>
             </Box>
@@ -579,7 +606,7 @@ const StudentManagement = () => {
                   </Select>
                 </FormControl>
               </Grid>
-              <Grid item xs={12}>
+              <Grid item xs={12} sm={6}>
                 <FormControl fullWidth>
                   <InputLabel>Fee Plan</InputLabel>
                   <Select
@@ -594,10 +621,27 @@ const StudentManagement = () => {
                   </Select>
                 </FormControl>
               </Grid>
+              <Grid item xs={12} sm={6}>
+                <DatePicker
+                  label="Start Date"
+                  value={new Date(editStudentData.startDate)}
+                  onChange={(newValue) => {
+                    if (newValue) {
+                      setEditStudentData((prev) => ({
+                        ...prev,
+                        startDate: format(newValue, 'yyyy-MM-dd'),
+                      }));
+                    }
+                  }}
+                  slotProps={{
+                    textField: { fullWidth: true }
+                  }}
+                />
+              </Grid>
             </Grid>
           </DialogContent>
           <DialogActions>
-            <Button onClick={() => setOpenEditDialog(false)}>Cancel</Button>
+            <Button onClick={handleCloseEditDialog}>Cancel</Button>
             <Button
               variant="contained"
               onClick={handleUpdateStudent}
@@ -607,14 +651,6 @@ const StudentManagement = () => {
             </Button>
           </DialogActions>
         </Dialog>
-
-        {/* Success Snackbar */}
-        <Snackbar
-          open={!!successMessage}
-          autoHideDuration={4000}
-          onClose={() => setSuccessMessage('')}
-          message={successMessage}
-        />
       </Box>
     </LocalizationProvider>
   );

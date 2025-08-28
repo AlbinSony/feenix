@@ -9,7 +9,6 @@ import {
   InputAdornment,
   IconButton,
   Link as MuiLink,
-  Alert,
   Fade,
   Avatar,
   Grid,
@@ -18,12 +17,12 @@ import { Visibility, VisibilityOff, LockOutlined } from '@mui/icons-material';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import AuthBackground from '../components/AuthBackground';
+import toast from 'react-hot-toast';
 
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
@@ -33,7 +32,6 @@ const Login = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
     setIsLoading(true);
     
     try {
@@ -44,12 +42,13 @@ const Login = () => {
       const success = await login(email, password);
       
       if (success) {
+        toast.success('Login successful!');
         navigate(from, { replace: true });
       } else {
         throw new Error('Invalid email or password');
       }
     } catch (err: any) {
-      setError(err.message);
+      toast.error(err.message || 'Login failed. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -128,19 +127,6 @@ const Login = () => {
               >
                 Smart Payments Assistant
               </Typography>
-
-              {error && (
-                <Alert 
-                  severity="error" 
-                  sx={{ 
-                    mb: 3, 
-                    width: '100%',
-                    borderRadius: 2
-                  }}
-                >
-                  {error}
-                </Alert>
-              )}
 
               <Box component="form" onSubmit={handleSubmit} sx={{ mt: 1, width: '100%' }}>
                 <TextField

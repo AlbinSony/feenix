@@ -32,7 +32,6 @@ import {
   MenuItem,
   ListItemIcon,
   ListItemText,
-  Snackbar,
   Tooltip,
   FormControl,
   InputLabel,
@@ -69,6 +68,7 @@ import { groupApi, Group } from '../services/groupApi';
 import { studentApi, Student } from '../services/studentApi';
 import { useAuth } from '../context/AuthContext';
 import { format } from 'date-fns';
+import toast from 'react-hot-toast';
 
 
 interface PaymentEvent {
@@ -118,7 +118,6 @@ const GroupDetail = () => {
   const [error, setError] = useState('');
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
-  const [successMessage, setSuccessMessage] = useState('');
 
   const [groupDetails, setGroupDetails] = useState<Group | null>(null);
   const [editedGroupDetails, setEditedGroupDetails] = useState({
@@ -240,12 +239,12 @@ const GroupDetail = () => {
 
       setGroupDetails(updatedGroup);
       setOpenEditGroup(false);
-      setSuccessMessage('Group updated successfully');
+      toast.success('Group updated successfully');
       
       // Refresh group data to ensure consistency
       await fetchGroupDetails();
     } catch (err: any) {
-      setError(err.message || 'Failed to update group');
+      toast.error(err.message || 'Failed to update group');
     } finally {
       setSaving(false);
     }
@@ -253,7 +252,7 @@ const GroupDetail = () => {
 
   const handleAddStudent = async () => {
     if (!groupDetails || !newStudentData.name.trim() || !newStudentData.phone.trim()) {
-      setError('Please fill in all required fields');
+      toast.error('Please fill in all required fields');
       return;
     }
 
@@ -279,7 +278,7 @@ const GroupDetail = () => {
         startDate: new Date(),
       });
       setOpenAddMember(false);
-      setSuccessMessage('Student added successfully');
+      toast.success('Student added successfully');
       
       // Refresh both group details and students list
       await Promise.all([
@@ -287,7 +286,7 @@ const GroupDetail = () => {
         fetchGroupStudents()
       ]);
     } catch (err: any) {
-      setError(err.message || 'Failed to add student');
+      toast.error(err.message || 'Failed to add student');
     } finally {
       setCreateStudentLoading(false);
     }
@@ -296,7 +295,7 @@ const GroupDetail = () => {
   const handleDeleteStudent = async (studentId: string) => {
     try {
       await studentApi.delete(studentId);
-      setSuccessMessage('Student removed successfully');
+      toast.success('Student removed successfully');
       
       // Refresh both group details and students list
       await Promise.all([
@@ -304,7 +303,7 @@ const GroupDetail = () => {
         fetchGroupStudents()
       ]);
     } catch (err: any) {
-      setError(err.message || 'Failed to remove student');
+      toast.error(err.message || 'Failed to remove student');
     }
   };
 
@@ -322,7 +321,7 @@ const GroupDetail = () => {
     try {
       setDeleteLoading(true);
       await groupApi.delete(id);
-      setSuccessMessage('Group deleted successfully');
+      toast.success('Group deleted successfully');
       handleMenuClose();
 
       // Navigate back to groups list after successful deletion
@@ -330,7 +329,7 @@ const GroupDetail = () => {
         navigate('/groups');
       }, 1500);
     } catch (err: any) {
-      setError(err.message || 'Failed to delete group');
+      toast.error(err.message || 'Failed to delete group');
     } finally {
       setDeleteLoading(false);
     }
@@ -814,14 +813,6 @@ const GroupDetail = () => {
             <ListItemText>Delete Group</ListItemText>
           </MenuItem>
         </Menu>
-
-        {/* Success Snackbar */}
-        <Snackbar
-          open={!!successMessage}
-          autoHideDuration={4000}
-          onClose={() => setSuccessMessage('')}
-          message={successMessage}
-        />
 
         {/* Edit Group Dialog */}
         <Dialog

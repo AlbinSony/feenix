@@ -74,11 +74,27 @@ export const studentApi = {
 
   update: async (id: string, studentData: Partial<CreateStudentData>): Promise<Student> => {
     try {
-      const response = await apiClient.patch(`/students/${id}`, studentData);
+      // Validate ID parameter
+      if (!id) {
+        console.error('Update failed: No student ID provided');
+        throw new Error('No student selected for update');
+      }
+      
+      // Ensure ID is properly formatted and not undefined
+      const studentId = id.trim();
+      if (!studentId) {
+        console.error('Update failed: Student ID is empty');
+        throw new Error('Invalid student ID');
+      }
+      
+      console.log(`Updating student with ID: ${studentId}`, studentData);
+      const response = await apiClient.put(`/students/${studentId}`, studentData);
       return response.data;
     } catch (error: any) {
       console.error('Error updating student:', error);
-      throw new Error(error.response?.data?.message || 'Failed to update student');
+      // Use the specific error message if available
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to update student';
+      throw new Error(errorMessage);
     }
   },
 

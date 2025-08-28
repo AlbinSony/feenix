@@ -28,7 +28,6 @@ import {
   MenuList,
   ListItemIcon,
   ListItemText,
-  Snackbar,
 } from '@mui/material';
 import { 
   Search as SearchIcon, 
@@ -45,6 +44,7 @@ import { useNavigate } from 'react-router-dom';
 import { groupApi, Group } from '../services/groupApi';
 import { studentApi } from '../services/studentApi';
 import { useAuth } from '../context/AuthContext';
+import toast from 'react-hot-toast';
 
 const PaymentGroups = () => {
   const theme = useTheme();
@@ -64,7 +64,7 @@ const PaymentGroups = () => {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [selectedGroup, setSelectedGroup] = useState<Group | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
-  const [successMessage, setSuccessMessage] = useState('');
+  const [] = useState('');
 
   // Fetch groups on component mount
   useEffect(() => {
@@ -148,9 +148,9 @@ const PaymentGroups = () => {
       setNewGroupFee('');
       setNewGroupFrequency('Monthly');
       setOpenNewGroupDialog(false);
-      setSuccessMessage('Group created successfully');
+      toast.success('Group created successfully');
     } catch (err: any) {
-      setError(err.message || 'Failed to create group');
+      toast.error(err.message || 'Failed to create group');
     } finally {
       setCreateLoading(false);
     }
@@ -181,14 +181,14 @@ const PaymentGroups = () => {
     try {
       setDeleteLoading(true);
       await groupApi.delete(selectedGroup._id);
-      setSuccessMessage('Group deleted successfully');
+      toast.success('Group deleted successfully');
       handleMenuClose();
       
       // Refresh both groups and students count
       await fetchGroups();
       await fetchTotalStudents();
     } catch (err: any) {
-      setError(err.message || 'Failed to delete group');
+      toast.error(err.message || 'Failed to delete group');
     } finally {
       setDeleteLoading(false);
     }
@@ -445,14 +445,6 @@ const PaymentGroups = () => {
           </MenuItem>
         </MenuList>
       </Menu>
-
-      {/* Success Snackbar */}
-      <Snackbar
-        open={!!successMessage}
-        autoHideDuration={4000}
-        onClose={() => setSuccessMessage('')}
-        message={successMessage}
-      />
 
       {/* New Group Dialog */}
       <Dialog open={openNewGroupDialog} onClose={() => setOpenNewGroupDialog(false)} maxWidth="sm" fullWidth>

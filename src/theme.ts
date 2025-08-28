@@ -218,6 +218,25 @@ const theme = createTheme({
         },
       },
     },
+    MuiTooltip: {
+      styleOverrides: {
+        tooltip: {
+          backgroundColor: '#333',
+          color: '#fff',
+          fontSize: '12px',
+          borderRadius: 6,
+          padding: '8px 12px',
+        },
+      },
+    },
+    MuiPopover: {
+      styleOverrides: {
+        paper: {
+          borderRadius: 8,
+          boxShadow: '0 4px 20px rgba(0, 0, 0, 0.15)',
+        },
+      },
+    },
   },
 });
 
