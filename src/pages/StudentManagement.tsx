@@ -1,205 +1,622 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Box,
-  Paper,
   Typography,
-  TextField,
+  Card,
+  CardContent,
   Button,
-  Grid,
-  MenuItem,
   Table,
   TableBody,
   TableCell,
   TableContainer,
   TableHead,
   TableRow,
+  Paper,
+  TextField,
+  InputAdornment,
+  IconButton,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Grid,
+  Chip,
+  Avatar,
+  useTheme,
+  alpha,
+  CircularProgress,
+  Alert,
+  Menu,
+  MenuItem,
+  ListItemIcon,
+  ListItemText,
+  Snackbar,
   FormControl,
   InputLabel,
   Select,
-  Chip,
-  Card,
-  Stack,
 } from '@mui/material';
-import { Add as AddIcon } from '@mui/icons-material';
-import { DatePicker } from '@mui/x-date-pickers';
-
-// Mock data
-const students = [
-  {
-    id: 1,
-    name: "Aarav Kumar",
-    phone: "9876543210",
-    group: "Batch A",
-    feePlan: "Monthly",
-    status: "Unpaid",
-    lastPayment: "May 2025",
-  },
-];
-
-const groups = ["Batch A", "Batch B", "Batch C"];
-const feePlans = ["Monthly", "Quarterly", "Yearly"];
-const statusOptions = ["All", "Paid", "Unpaid"];
+import {
+  Search as SearchIcon,
+  Add as AddIcon,
+  Edit as EditIcon,
+  Delete as DeleteIcon,
+  Phone as PhoneIcon,
+  Person as PersonIcon,
+  Group as GroupIcon,
+  MoreVert as MoreVertIcon,
+  Close as CloseIcon,
+} from '@mui/icons-material';
+import { DatePicker, LocalizationProvider } from '@mui/x-date-pickers';
+import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
+import { format } from 'date-fns';
+import { studentApi, Student, CreateStudentData } from '../services/studentApi';
+import { groupApi, Group } from '../services/groupApi';
+import { useAuth } from '../context/AuthContext';
 
 const StudentManagement = () => {
-  const [selectedGroup, setSelectedGroup] = useState<string>('');
-  const [selectedStatus, setSelectedStatus] = useState<string>('All');
-  const [startDate, setStartDate] = useState<Date | null>(null);
+  const theme = useTheme();
+  const { isAuthenticated } = useAuth();
+  
+  // State management
+  const [students, setStudents] = useState<Student[]>([]);
+  const [groups, setGroups] = useState<Group[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [openAddDialog, setOpenAddDialog] = useState(false);
+  const [openEditDialog, setOpenEditDialog] = useState(false);
+  const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [createLoading, setCreateLoading] = useState(false);
+  const [updateLoading, setUpdateLoading] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
 
-  const filteredStudents = students.filter(student => {
-    const groupMatch = !selectedGroup || student.group === selectedGroup;
-    const statusMatch = selectedStatus === 'All' || student.status === selectedStatus;
-    return groupMatch && statusMatch;
+  // Form data
+  const [newStudentData, setNewStudentData] = useState<CreateStudentData>({
+    name: '',
+    phone: '',
+    group: '',
+    feePlan: 'Monthly',
+    startDate: format(new Date(), 'yyyy-MM-dd'),
   });
 
+  const [editStudentData, setEditStudentData] = useState<CreateStudentData>({
+    name: '',
+    phone: '',
+    group: '',
+    feePlan: 'Monthly',
+    startDate: '',
+  });
+
+  const [startDate, setStartDate] = useState<Date | null>(new Date());
+
+  // Fetch data on component mount
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchStudents();
+      fetchGroups();
+    }
+  }, [isAuthenticated]);
+
+  const fetchStudents = async () => {
+    try {
+      setLoading(true);
+      setError('');
+      const data = await studentApi.getAll();
+      setStudents(data);
+    } catch (err: any) {
+      setError(err.message || 'Failed to load students');
+      console.error('Error fetching students:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchGroups = async () => {
+    try {
+      const data = await groupApi.getAll();
+      setGroups(data);
+    } catch (err: any) {
+      console.error('Error fetching groups:', err);
+    }
+  };
+
+  // Filter students based on search query
+  const filteredStudents = students.filter(student =>
+    student.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    student.phone.includes(searchQuery) ||
+    student.group.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  // Handle create student
+  const handleCreateStudent = async () => {
+    if (!newStudentData.name.trim() || !newStudentData.phone.trim() || !newStudentData.group) {
+      setError('Please fill in all required fields');
+      return;
+    }
+
+    try {
+      setCreateLoading(true);
+      setError('');
+      
+      const studentData = {
+        ...newStudentData,
+        startDate: startDate ? format(startDate, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd'),
+      };
+
+      await studentApi.create(studentData);
+      
+      // Reset form
+      setNewStudentData({
+        name: '',
+        phone: '',
+        group: '',
+        feePlan: 'Monthly',
+        startDate: format(new Date(), 'yyyy-MM-dd'),
+      });
+      setStartDate(new Date());
+      setOpenAddDialog(false);
+      setSuccessMessage('Student created successfully');
+      
+      // Refresh students list
+      fetchStudents();
+    } catch (err: any) {
+      setError(err.message || 'Failed to create student');
+    } finally {
+      setCreateLoading(false);
+    }
+  };
+
+  // Handle edit student
+  const handleEditStudent = (student: Student) => {
+    setSelectedStudent(student);
+    setEditStudentData({
+      name: student.name,
+      phone: student.phone,
+      group: student.group._id,
+      feePlan: student.feePlan,
+      startDate: format(new Date(student.startDate), 'yyyy-MM-dd'),
+    });
+    setOpenEditDialog(true);
+    handleMenuClose();
+  };
+
+  const handleUpdateStudent = async () => {
+    if (!selectedStudent || !editStudentData.name.trim() || !editStudentData.phone.trim()) {
+      setError('Please fill in all required fields');
+      return;
+    }
+
+    try {
+      setUpdateLoading(true);
+      setError('');
+      
+      await studentApi.update(selectedStudent._id, editStudentData);
+      
+      setOpenEditDialog(false);
+      setSelectedStudent(null);
+      setSuccessMessage('Student updated successfully');
+      
+      // Refresh students list
+      fetchStudents();
+    } catch (err: any) {
+      setError(err.message || 'Failed to update student');
+    } finally {
+      setUpdateLoading(false);
+    }
+  };
+
+  // Handle delete student
+  const handleDeleteStudent = async () => {
+    if (!selectedStudent) return;
+
+    try {
+      setDeleteLoading(true);
+      await studentApi.delete(selectedStudent._id);
+      setSuccessMessage('Student deleted successfully');
+      handleMenuClose();
+      
+      // Refresh students list
+      fetchStudents();
+    } catch (err: any) {
+      setError(err.message || 'Failed to delete student');
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
+  const handleMenuOpen = (event: React.MouseEvent<HTMLElement>, student: Student) => {
+    event.stopPropagation();
+    setAnchorEl(event.currentTarget);
+    setSelectedStudent(student);
+  };
+
+  const handleMenuClose = () => {
+    setAnchorEl(null);
+    setSelectedStudent(null);
+  };
+
+  if (loading) {
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
+        <CircularProgress size={40} />
+        <Typography variant="body1" sx={{ ml: 2 }}>Loading students...</Typography>
+      </Box>
+    );
+  }
+
   return (
-    <Stack spacing={3}>
-      <Typography variant="h4" fontWeight="bold" color="primary">
-        Student Management
-      </Typography>
+    <LocalizationProvider dateAdapter={AdapterDateFns}>
+      <Box>
+        {error && (
+          <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError('')}>
+            {error}
+          </Alert>
+        )}
 
-      <Card elevation={0}>
-        <Box p={3}>
-          <Typography variant="h6" fontWeight="bold" mb={3}>
-            Add New Student
+        {/* Header */}
+        <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+          <Typography variant="h4" component="h1" fontWeight="bold">
+            Student Management
           </Typography>
-          
-          <Grid container spacing={3}>
-            <Grid item xs={12} sm={6} md={4}>
-              <TextField
-                fullWidth
-                label="Name"
-                variant="outlined"
-                size="small"
-              />
-            </Grid>
-            <Grid item xs={12} sm={6} md={4}>
-              <TextField
-                fullWidth
-                label="Phone Number"
-                variant="outlined"
-                size="small"
-              />
-            </Grid>
-            <Grid item xs={12} sm={6} md={4}>
-              <FormControl fullWidth size="small">
-                <InputLabel>Group</InputLabel>
-                <Select label="Group">
-                  {groups.map((group) => (
-                    <MenuItem key={group} value={group}>
-                      {group}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Grid>
-            <Grid item xs={12} sm={6} md={4}>
-              <FormControl fullWidth size="small">
-                <InputLabel>Fee Plan</InputLabel>
-                <Select label="Fee Plan">
-                  {feePlans.map((plan) => (
-                    <MenuItem key={plan} value={plan}>
-                      {plan}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Grid>
-            <Grid item xs={12} sm={6} md={4}>
-              <DatePicker 
-                label="Start Date"
-                value={startDate}
-                onChange={(newValue) => setStartDate(newValue)}
-                slotProps={{ textField: { size: 'small', fullWidth: true } }}
-              />
-            </Grid>
-            <Grid item xs={12} sm={6} md={4}>
-              <Button
-                fullWidth
-                variant="contained"
-                startIcon={<AddIcon />}
-                sx={{ height: '40px' }}
-              >
-                Add Student
-              </Button>
-            </Grid>
-          </Grid>
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={() => setOpenAddDialog(true)}
+          >
+            Add Student
+          </Button>
         </Box>
-      </Card>
 
-      <Card elevation={0}>
-        <Box p={3}>
-          <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-            <Typography variant="h6" fontWeight="bold">
-              Students List
-            </Typography>
-            <Stack direction="row" spacing={2}>
-              <FormControl size="small" sx={{ minWidth: 120 }}>
-                <InputLabel>Group</InputLabel>
-                <Select
-                  label="Group"
-                  value={selectedGroup}
-                  onChange={(e) => setSelectedGroup(e.target.value)}
-                >
-                  <MenuItem value="">All</MenuItem>
-                  {groups.map((group) => (
-                    <MenuItem key={group} value={group}>
-                      {group}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-              <FormControl size="small" sx={{ minWidth: 120 }}>
-                <InputLabel>Status</InputLabel>
-                <Select
-                  label="Status"
-                  value={selectedStatus}
-                  onChange={(e) => setSelectedStatus(e.target.value)}
-                >
-                  {statusOptions.map((status) => (
-                    <MenuItem key={status} value={status}>
-                      {status}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Stack>
-          </Box>
+        {/* Summary Cards */}
+        <Grid container spacing={3} sx={{ mb: 4 }}>
+          <Grid item xs={12} sm={6} md={4}>
+            <Card sx={{ bgcolor: alpha(theme.palette.primary.main, 0.1) }}>
+              <CardContent>
+                <Box display="flex" alignItems="center">
+                  <Avatar sx={{ bgcolor: theme.palette.primary.main, mr: 2 }}>
+                    <PersonIcon />
+                  </Avatar>
+                  <Box>
+                    <Typography variant="h6">{students.length}</Typography>
+                    <Typography variant="body2" color="text.secondary">Total Students</Typography>
+                  </Box>
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+          <Grid item xs={12} sm={6} md={4}>
+            <Card sx={{ bgcolor: alpha(theme.palette.success.main, 0.1) }}>
+              <CardContent>
+                <Box display="flex" alignItems="center">
+                  <Avatar sx={{ bgcolor: theme.palette.success.main, mr: 2 }}>
+                    <GroupIcon />
+                  </Avatar>
+                  <Box>
+                    <Typography variant="h6">{groups.length}</Typography>
+                    <Typography variant="body2" color="text.secondary">Active Groups</Typography>
+                  </Box>
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+        </Grid>
 
-          <TableContainer component={Paper} variant="outlined">
+        {/* Search */}
+        <TextField
+          fullWidth
+          placeholder="Search students by name, phone, or group..."
+          variant="outlined"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          sx={{ mb: 3 }}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <SearchIcon color="action" />
+              </InputAdornment>
+            ),
+          }}
+        />
+
+        {/* Students Table */}
+        <Card>
+          <TableContainer component={Paper}>
             <Table>
               <TableHead>
                 <TableRow>
-                  <TableCell>Name</TableCell>
+                  <TableCell>Student</TableCell>
                   <TableCell>Phone</TableCell>
                   <TableCell>Group</TableCell>
                   <TableCell>Fee Plan</TableCell>
+                  <TableCell>Start Date</TableCell>
                   <TableCell>Status</TableCell>
-                  <TableCell>Last Payment</TableCell>
+                  <TableCell align="right">Actions</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
-                {filteredStudents.map((student) => (
-                  <TableRow key={student.id}>
-                    <TableCell>{student.name}</TableCell>
-                    <TableCell>{student.phone}</TableCell>
-                    <TableCell>{student.group}</TableCell>
-                    <TableCell>{student.feePlan}</TableCell>
-                    <TableCell>
-                      <Chip 
-                        label={student.status} 
-                        color={student.status === 'Paid' ? 'success' : 'error'}
-                        size="small"
-                      />
+                {filteredStudents.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={7} align="center" sx={{ py: 4 }}>
+                      <Typography variant="body2" color="text.secondary">
+                        {searchQuery ? 'No students found' : 'No students added yet'}
+                      </Typography>
                     </TableCell>
-                    <TableCell>{student.lastPayment}</TableCell>
                   </TableRow>
-                ))}
+                ) : (
+                  filteredStudents.map((student) => (
+                    <TableRow key={student._id} hover>
+                      <TableCell>
+                        <Box display="flex" alignItems="center">
+                          <Avatar sx={{ mr: 2, width: 32, height: 32 }}>
+                            {student.name.charAt(0)}
+                          </Avatar>
+                          {student.name}
+                        </Box>
+                      </TableCell>
+                      <TableCell>
+                        <Box display="flex" alignItems="center">
+                          <PhoneIcon sx={{ mr: 1, fontSize: 16, color: 'text.secondary' }} />
+                          {student.phone}
+                        </Box>
+                      </TableCell>
+                      <TableCell>
+                        <Chip
+                          label={student.group.name}
+                          size="small"
+                          variant="outlined"
+                          color="primary"
+                        />
+                      </TableCell>
+                      <TableCell>{student.feePlan}</TableCell>
+                      <TableCell>
+                        {format(new Date(student.startDate), 'PP')}
+                      </TableCell>
+                      <TableCell>
+                        <Chip
+                          label="Active"
+                          size="small"
+                          color="success"
+                        />
+                      </TableCell>
+                      <TableCell align="right">
+                        <IconButton
+                          size="small"
+                          onClick={(e) => handleMenuOpen(e, student)}
+                        >
+                          <MoreVertIcon />
+                        </IconButton>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
               </TableBody>
             </Table>
           </TableContainer>
-        </Box>
-      </Card>
-    </Stack>
+        </Card>
+
+        {/* Action Menu */}
+        <Menu
+          anchorEl={anchorEl}
+          open={Boolean(anchorEl)}
+          onClose={handleMenuClose}
+          transformOrigin={{ horizontal: 'right', vertical: 'top' }}
+          anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+        >
+          <MenuItem onClick={() => handleEditStudent(selectedStudent!)}>
+            <ListItemIcon>
+              <EditIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>Edit Student</ListItemText>
+          </MenuItem>
+          <MenuItem
+            onClick={handleDeleteStudent}
+            disabled={deleteLoading}
+            sx={{ color: 'error.main' }}
+          >
+            <ListItemIcon>
+              {deleteLoading ? (
+                <CircularProgress size={20} color="error" />
+              ) : (
+                <DeleteIcon fontSize="small" color="error" />
+              )}
+            </ListItemIcon>
+            <ListItemText>Delete Student</ListItemText>
+          </MenuItem>
+        </Menu>
+
+        {/* Add Student Dialog */}
+        <Dialog
+          open={openAddDialog}
+          onClose={() => setOpenAddDialog(false)}
+          maxWidth="sm"
+          fullWidth
+        >
+          <DialogTitle>
+            <Box display="flex" justifyContent="space-between" alignItems="center">
+              Add New Student
+              <IconButton onClick={() => setOpenAddDialog(false)}>
+                <CloseIcon />
+              </IconButton>
+            </Box>
+          </DialogTitle>
+          <DialogContent dividers>
+            <Grid container spacing={3}>
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Student Name"
+                  required
+                  value={newStudentData.name}
+                  onChange={(e) =>
+                    setNewStudentData((prev) => ({ ...prev, name: e.target.value }))
+                  }
+                />
+              </Grid>
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Phone Number"
+                  required
+                  value={newStudentData.phone}
+                  onChange={(e) =>
+                    setNewStudentData((prev) => ({ ...prev, phone: e.target.value }))
+                  }
+                />
+              </Grid>
+              <Grid item xs={12}>
+                <FormControl fullWidth required>
+                  <InputLabel>Select Group</InputLabel>
+                  <Select
+                    value={newStudentData.group}
+                    label="Select Group"
+                    onChange={(e) =>
+                      setNewStudentData((prev) => ({ ...prev, group: e.target.value }))
+                    }
+                  >
+                    {groups.map((group) => (
+                      <MenuItem key={group._id} value={group._id}>
+                        {group.name} - ₹{group.fee}/{group.frequency}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <FormControl fullWidth>
+                  <InputLabel>Fee Plan</InputLabel>
+                  <Select
+                    value={newStudentData.feePlan}
+                    label="Fee Plan"
+                    onChange={(e) =>
+                      setNewStudentData((prev) => ({ ...prev, feePlan: e.target.value }))
+                    }
+                  >
+                    <MenuItem value="Monthly">Monthly</MenuItem>
+                    <MenuItem value="One-Time">One-Time</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <DatePicker
+                  label="Start Date"
+                  value={startDate}
+                  onChange={(newValue) => setStartDate(newValue)}
+                  slotProps={{
+                    textField: { fullWidth: true }
+                  }}
+                />
+              </Grid>
+            </Grid>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setOpenAddDialog(false)}>Cancel</Button>
+            <Button
+              variant="contained"
+              onClick={handleCreateStudent}
+              disabled={createLoading || !newStudentData.name.trim() || !newStudentData.phone.trim() || !newStudentData.group}
+            >
+              {createLoading ? <CircularProgress size={20} /> : 'Add Student'}
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Edit Student Dialog */}
+        <Dialog
+          open={openEditDialog}
+          onClose={() => setOpenEditDialog(false)}
+          maxWidth="sm"
+          fullWidth
+        >
+          <DialogTitle>
+            <Box display="flex" justifyContent="space-between" alignItems="center">
+              Edit Student
+              <IconButton onClick={() => setOpenEditDialog(false)}>
+                <CloseIcon />
+              </IconButton>
+            </Box>
+          </DialogTitle>
+          <DialogContent dividers>
+            <Grid container spacing={3}>
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Student Name"
+                  required
+                  value={editStudentData.name}
+                  onChange={(e) =>
+                    setEditStudentData((prev) => ({ ...prev, name: e.target.value }))
+                  }
+                />
+              </Grid>
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Phone Number"
+                  required
+                  value={editStudentData.phone}
+                  onChange={(e) =>
+                    setEditStudentData((prev) => ({ ...prev, phone: e.target.value }))
+                  }
+                />
+              </Grid>
+              <Grid item xs={12}>
+                <FormControl fullWidth required>
+                  <InputLabel>Select Group</InputLabel>
+                  <Select
+                    value={editStudentData.group}
+                    label="Select Group"
+                    onChange={(e) =>
+                      setEditStudentData((prev) => ({ ...prev, group: e.target.value }))
+                    }
+                  >
+                    {groups.map((group) => (
+                      <MenuItem key={group._id} value={group._id}>
+                        {group.name} - ₹{group.fee}/{group.frequency}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+              <Grid item xs={12}>
+                <FormControl fullWidth>
+                  <InputLabel>Fee Plan</InputLabel>
+                  <Select
+                    value={editStudentData.feePlan}
+                    label="Fee Plan"
+                    onChange={(e) =>
+                      setEditStudentData((prev) => ({ ...prev, feePlan: e.target.value }))
+                    }
+                  >
+                    <MenuItem value="Monthly">Monthly</MenuItem>
+                    <MenuItem value="One-Time">One-Time</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+            </Grid>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setOpenEditDialog(false)}>Cancel</Button>
+            <Button
+              variant="contained"
+              onClick={handleUpdateStudent}
+              disabled={updateLoading || !editStudentData.name.trim() || !editStudentData.phone.trim()}
+            >
+              {updateLoading ? <CircularProgress size={20} /> : 'Update Student'}
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Success Snackbar */}
+        <Snackbar
+          open={!!successMessage}
+          autoHideDuration={4000}
+          onClose={() => setSuccessMessage('')}
+          message={successMessage}
+        />
+      </Box>
+    </LocalizationProvider>
   );
 };
 

@@ -88,4 +88,28 @@ export const groupApi = {
       throw new Error(error.response?.data?.message || 'Failed to delete group');
     }
   },
+
+  // Add method to get group with student count
+  getWithStats: async (id: string): Promise<Group> => {
+    try {
+      const response = await apiClient.get(`/groups/${id}/stats`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Error fetching group with stats:', error);
+      // Fallback to regular getById if stats endpoint doesn't exist
+      return await groupApi.getById(id);
+    }
+  },
+
+  // Add method to get groups with updated counts
+  getAllWithStats: async (): Promise<Group[]> => {
+    try {
+      const response = await apiClient.get('/groups?includeStats=true');
+      return response.data;
+    } catch (error: any) {
+      console.error('Error fetching groups with stats:', error);
+      // Fallback to regular getAll if stats query doesn't exist
+      return await groupApi.getAll();
+    }
+  },
 };

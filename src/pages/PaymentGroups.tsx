@@ -37,12 +37,13 @@ import {
   Close as CloseIcon,
   CurrencyRupee as RupeeIcon,
   Group as GroupIcon,
-  Assessment as AssessmentIcon,
   Delete as DeleteIcon,
   MoreVert as MoreVertIcon,
+  Person as PersonIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { groupApi, Group } from '../services/groupApi';
+import { studentApi } from '../services/studentApi';
 import { useAuth } from '../context/AuthContext';
 
 const PaymentGroups = () => {
@@ -50,6 +51,7 @@ const PaymentGroups = () => {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
   const [groups, setGroups] = useState<Group[]>([]);
+  const [totalStudentsCount, setTotalStudentsCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
@@ -68,6 +70,7 @@ const PaymentGroups = () => {
   useEffect(() => {
     if (isAuthenticated) {
       fetchGroups();
+      fetchTotalStudents();
     }
   }, [isAuthenticated]);
 
@@ -76,12 +79,31 @@ const PaymentGroups = () => {
       setLoading(true);
       setError('');
       const data = await groupApi.getAll();
-      setGroups(data);
+      
+      // Ensure all groups have default values for the summary calculations
+      const groupsWithDefaults = data.map(group => ({
+        ...group,
+        students: group.students || 0,
+        collected: group.collected || 0,
+        dues: group.dues || 0
+      }));
+      
+      setGroups(groupsWithDefaults);
     } catch (err: any) {
       setError(err.message || 'Failed to load groups');
       console.error('Error fetching groups:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchTotalStudents = async () => {
+    try {
+      const students = await studentApi.getAll();
+      setTotalStudentsCount(students.length);
+    } catch (err: any) {
+      console.error('Error fetching students count:', err);
+      // Don't show error for students count, just log it
     }
   };
 
@@ -92,9 +114,9 @@ const PaymentGroups = () => {
   );
 
   // Calculate summary statistics
-  const totalStudents = groups.reduce((sum, group) => sum + group.students, 0);
-  const totalCollected = groups.reduce((sum, group) => sum + group.collected, 0);
-  const totalDues = groups.reduce((sum, group) => sum + group.dues, 0);
+  const totalGroups = groups.length;
+  const totalStudents = totalStudentsCount; // Use actual students count from API
+  const totalCollected = groups.reduce((sum, group) => sum + (group.collected || 0), 0);
 
   const handleCreateNewGroup = async () => {
     if (!newGroupName.trim() || !newGroupFee) return;
@@ -109,7 +131,16 @@ const PaymentGroups = () => {
       };
       
       const createdGroup = await groupApi.create(newGroupData);
-      setGroups(prev => [...prev, createdGroup]);
+      
+      // Add the new group to the existing list with default values
+      const groupWithDefaults = {
+        ...createdGroup,
+        students: createdGroup.students || 0,
+        collected: createdGroup.collected || 0,
+        dues: createdGroup.dues || 0
+      };
+      
+      setGroups(prev => [...prev, groupWithDefaults]);
       
       // Reset form
       setNewGroupName('');
@@ -117,6 +148,7 @@ const PaymentGroups = () => {
       setNewGroupFee('');
       setNewGroupFrequency('Monthly');
       setOpenNewGroupDialog(false);
+      setSuccessMessage('Group created successfully');
     } catch (err: any) {
       setError(err.message || 'Failed to create group');
     } finally {
@@ -149,15 +181,31 @@ const PaymentGroups = () => {
     try {
       setDeleteLoading(true);
       await groupApi.delete(selectedGroup._id);
-      setGroups(prev => prev.filter(group => group._id !== selectedGroup._id));
       setSuccessMessage('Group deleted successfully');
       handleMenuClose();
+      
+      // Refresh both groups and students count
+      await fetchGroups();
+      await fetchTotalStudents();
     } catch (err: any) {
       setError(err.message || 'Failed to delete group');
     } finally {
       setDeleteLoading(false);
     }
   };
+
+  // Add refresh function to be called when returning from GroupDetail
+  useEffect(() => {
+    const handleFocus = () => {
+      if (isAuthenticated) {
+        fetchGroups();
+        fetchTotalStudents();
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [isAuthenticated]);
 
   if (loading) {
     return (
@@ -185,6 +233,21 @@ const PaymentGroups = () => {
                   <GroupIcon />
                 </Avatar>
                 <Box>
+                  <Typography variant="h6">{totalGroups}</Typography>
+                  <Typography variant="body2" color="text.secondary">Total Groups</Typography>
+                </Box>
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid item xs={12} sm={6} md={4}>
+          <Card sx={{ bgcolor: alpha(theme.palette.info.main, 0.1) }}>
+            <CardContent>
+              <Box display="flex" alignItems="center">
+                <Avatar sx={{ bgcolor: theme.palette.info.main, mr: 2 }}>
+                  <PersonIcon />
+                </Avatar>
+                <Box>
                   <Typography variant="h6">{totalStudents}</Typography>
                   <Typography variant="body2" color="text.secondary">Total Students</Typography>
                 </Box>
@@ -202,21 +265,6 @@ const PaymentGroups = () => {
                 <Box>
                   <Typography variant="h6">₹{totalCollected.toLocaleString()}</Typography>
                   <Typography variant="body2" color="text.secondary">Total Collected</Typography>
-                </Box>
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid item xs={12} sm={6} md={4}>
-          <Card sx={{ bgcolor: alpha(theme.palette.error.main, 0.1) }}>
-            <CardContent>
-              <Box display="flex" alignItems="center">
-                <Avatar sx={{ bgcolor: theme.palette.error.main, mr: 2 }}>
-                  <AssessmentIcon />
-                </Avatar>
-                <Box>
-                  <Typography variant="h6">₹{totalDues.toLocaleString()}</Typography>
-                  <Typography variant="body2" color="text.secondary">Total Dues</Typography>
                 </Box>
               </Box>
             </CardContent>
