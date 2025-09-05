@@ -49,11 +49,11 @@ const Reminders = () => {
       {/* Stats Cards */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
         {statsData.map((stat, index) => (
-          <Grid item xs={12} md={4} key={index}>
+          <Grid item xs={12} sm={6} md={4} key={index}>
             <Card
               elevation={0}
               sx={{
-                p: 3,
+                p: { xs: 2, sm: 3 },
                 border: '1px solid',
                 borderColor: 'divider',
                 borderRadius: 2,
@@ -64,8 +64,8 @@ const Reminders = () => {
             >
               <Box
                 sx={{
-                  width: 48,
-                  height: 48,
+                  width: { xs: 40, sm: 48 },
+                  height: { xs: 40, sm: 48 },
                   borderRadius: 2,
                   display: 'flex',
                   alignItems: 'center',
@@ -80,7 +80,11 @@ const Reminders = () => {
                 <Typography color="text.secondary" variant="body2">
                   {stat.title}
                 </Typography>
-                <Typography variant="h4" fontWeight="bold">
+                <Typography 
+                  variant="h5" 
+                  sx={{ typography: { sm: 'h4' } }} 
+                  fontWeight="bold"
+                >
                   {stat.value}
                 </Typography>
               </Box>

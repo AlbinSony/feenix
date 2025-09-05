@@ -33,6 +33,11 @@ import {
   FormControl,
   InputLabel,
   Select,
+  TablePagination,
+  TableSortLabel,
+  ToggleButton,
+  ToggleButtonGroup,
+  Tooltip,
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -44,6 +49,9 @@ import {
   Group as GroupIcon,
   MoreVert as MoreVertIcon,
   Close as CloseIcon,
+  ViewList as ViewListIcon,
+  ViewModule as ViewModuleIcon,
+  Sort as SortIcon,
 } from '@mui/icons-material';
 import { DatePicker, LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
@@ -92,6 +100,13 @@ const StudentManagement = () => {
 
   const [startDate, setStartDate] = useState<Date | null>(new Date());
 
+  // New state for pagination, sorting, and view
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [sortBy, setSortBy] = useState<'name' | 'phone' | 'group' | 'startDate'>('name');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+  const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
+
   // Fetch data on component mount
   useEffect(() => {
     if (isAuthenticated) {
@@ -139,6 +154,69 @@ const StudentManagement = () => {
     student.phone.includes(searchQuery) ||
     student.group.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  // Sorting function
+  const handleSort = (property: 'name' | 'phone' | 'group' | 'startDate') => {
+    const isAsc = sortBy === property && sortOrder === 'asc';
+    setSortOrder(isAsc ? 'desc' : 'asc');
+    setSortBy(property);
+  };
+
+  // Filter and sort students
+  const processedStudents = filteredStudents
+    .sort((a, b) => {
+      let aValue: string | number;
+      let bValue: string | number;
+      
+      switch (sortBy) {
+        case 'name':
+          aValue = a.name.toLowerCase();
+          bValue = b.name.toLowerCase();
+          break;
+        case 'phone':
+          aValue = a.phone;
+          bValue = b.phone;
+          break;
+        case 'group':
+          aValue = a.group.name.toLowerCase();
+          bValue = b.group.name.toLowerCase();
+          break;
+        case 'startDate':
+          aValue = new Date(a.startDate).getTime();
+          bValue = new Date(b.startDate).getTime();
+          break;
+        default:
+          aValue = a.name.toLowerCase();
+          bValue = b.name.toLowerCase();
+      }
+      
+      if (sortOrder === 'asc') {
+        return aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
+      } else {
+        return aValue > bValue ? -1 : aValue < bValue ? 1 : 0;
+      }
+    });
+
+  // Paginated students
+  const paginatedStudents = processedStudents.slice(
+    page * rowsPerPage,
+    page * rowsPerPage + rowsPerPage
+  );
+
+  const handleChangePage = (_event: unknown, newPage: number) => {
+    setPage(newPage);
+  };
+
+  const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setRowsPerPage(parseInt(event.target.value, 10));
+    setPage(0);
+  };
+
+  const handleViewModeChange = (_event: React.MouseEvent<HTMLElement>, newViewMode: 'table' | 'grid') => {
+    if (newViewMode !== null) {
+      setViewMode(newViewMode);
+    }
+  };
 
   // Handle create student
   const handleCreateStudent = async () => {
@@ -342,98 +420,273 @@ const StudentManagement = () => {
           </Grid>
         </Grid>
 
-        {/* Search */}
-        <TextField
-          fullWidth
-          placeholder="Search students by name, phone, or group..."
-          variant="outlined"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          sx={{ mb: 3 }}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <SearchIcon color="action" />
-              </InputAdornment>
-            ),
-          }}
-        />
+        {/* Enhanced Search and Controls */}
+        <Box sx={{ mb: 3 }}>
+          <Grid container spacing={2} alignItems="center">
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                placeholder="Search students by name, phone, or group..."
+                variant="outlined"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <SearchIcon color="action" />
+                    </InputAdornment>
+                  ),
+                }}
+              />
+            </Grid>
+            <Grid item xs={12} md={3}>
+              <FormControl fullWidth>
+                <InputLabel>Sort By</InputLabel>
+                <Select
+                  value={sortBy}
+                  label="Sort By"
+                  onChange={(e) => setSortBy(e.target.value as 'name' | 'phone' | 'group' | 'startDate')}
+                  startAdornment={<SortIcon sx={{ mr: 1, color: 'action.active' }} />}
+                >
+                  <MenuItem value="name">Name</MenuItem>
+                  <MenuItem value="phone">Phone</MenuItem>
+                  <MenuItem value="group">Group</MenuItem>
+                  <MenuItem value="startDate">Start Date</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} md={3}>
+              <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
+                <ToggleButtonGroup
+                  value={viewMode}
+                  exclusive
+                  onChange={handleViewModeChange}
+                  size="small"
+                >
+                  <ToggleButton value="table">
+                    <Tooltip title="Table View">
+                      <ViewListIcon />
+                    </Tooltip>
+                  </ToggleButton>
+                  <ToggleButton value="grid">
+                    <Tooltip title="Grid View">
+                      <ViewModuleIcon />
+                    </Tooltip>
+                  </ToggleButton>
+                </ToggleButtonGroup>
+                <Button
+                  variant="outlined"
+                  onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+                  size="small"
+                >
+                  {sortOrder === 'asc' ? '↑' : '↓'}
+                </Button>
+              </Box>
+            </Grid>
+          </Grid>
+        </Box>
 
-        {/* Students Table */}
-        <Card>
-          <TableContainer component={Paper}>
-            <Table>
-              <TableHead>
-                <TableRow>
-                  <TableCell>Student</TableCell>
-                  <TableCell>Phone</TableCell>
-                  <TableCell>Group</TableCell>
-                  <TableCell>Fee Plan</TableCell>
-                  <TableCell>Start Date</TableCell>
-                  <TableCell>Status</TableCell>
-                  <TableCell align="right">Actions</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {filteredStudents.length === 0 ? (
+        {/* Students Display */}
+        {viewMode === 'table' ? (
+          <Card>
+            <TableContainer component={Paper}>
+              <Table>
+                <TableHead>
                   <TableRow>
-                    <TableCell colSpan={7} align="center" sx={{ py: 4 }}>
-                      <Typography variant="body2" color="text.secondary">
-                        {searchQuery ? 'No students found' : 'No students added yet'}
-                      </Typography>
+                    <TableCell>
+                      <TableSortLabel
+                        active={sortBy === 'name'}
+                        direction={sortBy === 'name' ? sortOrder : 'asc'}
+                        onClick={() => handleSort('name')}
+                      >
+                        Student
+                      </TableSortLabel>
                     </TableCell>
+                    <TableCell>
+                      <TableSortLabel
+                        active={sortBy === 'phone'}
+                        direction={sortBy === 'phone' ? sortOrder : 'asc'}
+                        onClick={() => handleSort('phone')}
+                      >
+                        Phone
+                      </TableSortLabel>
+                    </TableCell>
+                    <TableCell>
+                      <TableSortLabel
+                        active={sortBy === 'group'}
+                        direction={sortBy === 'group' ? sortOrder : 'asc'}
+                        onClick={() => handleSort('group')}
+                      >
+                        Group
+                      </TableSortLabel>
+                    </TableCell>
+                    <TableCell>Fee Plan</TableCell>
+                    <TableCell>
+                      <TableSortLabel
+                        active={sortBy === 'startDate'}
+                        direction={sortBy === 'startDate' ? sortOrder : 'asc'}
+                        onClick={() => handleSort('startDate')}
+                      >
+                        Start Date
+                      </TableSortLabel>
+                    </TableCell>
+                    <TableCell>Status</TableCell>
+                    <TableCell align="right">Actions</TableCell>
                   </TableRow>
-                ) : (
-                  filteredStudents.map((student) => (
-                    <TableRow key={student._id} hover>
-                      <TableCell>
-                        <Box display="flex" alignItems="center">
-                          <Avatar sx={{ mr: 2, width: 32, height: 32 }}>
-                            {student.name.charAt(0)}
-                          </Avatar>
-                          {student.name}
-                        </Box>
-                      </TableCell>
-                      <TableCell>
-                        <Box display="flex" alignItems="center">
-                          <PhoneIcon sx={{ mr: 1, fontSize: 16, color: 'text.secondary' }} />
-                          {student.phone}
-                        </Box>
-                      </TableCell>
-                      <TableCell>
-                        <Chip
-                          label={student.group.name}
-                          size="small"
-                          variant="outlined"
-                          color="primary"
-                        />
-                      </TableCell>
-                      <TableCell>{student.feePlan}</TableCell>
-                      <TableCell>
-                        {format(new Date(student.startDate), 'PP')}
-                      </TableCell>
-                      <TableCell>
-                        <Chip
-                          label="Active"
-                          size="small"
-                          color="success"
-                        />
-                      </TableCell>
-                      <TableCell align="right">
-                        <IconButton
-                          size="small"
-                          onClick={(e) => handleMenuOpen(e, student)}
-                        >
-                          <MoreVertIcon />
-                        </IconButton>
+                </TableHead>
+                <TableBody>
+                  {paginatedStudents.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={7} align="center" sx={{ py: 4 }}>
+                        <Typography variant="body2" color="text.secondary">
+                          {searchQuery ? 'No students found' : 'No students added yet'}
+                        </Typography>
                       </TableCell>
                     </TableRow>
-                  )))
-                }
-              </TableBody>
-            </Table>
-          </TableContainer>
-        </Card>
+                  ) : (
+                    paginatedStudents.map((student) => (
+                      <TableRow key={student._id} hover>
+                        <TableCell>
+                          <Box display="flex" alignItems="center">
+                            <Avatar sx={{ mr: 2, width: 32, height: 32 }}>
+                              {student.name.charAt(0)}
+                            </Avatar>
+                            {student.name}
+                          </Box>
+                        </TableCell>
+                        <TableCell>
+                          <Box display="flex" alignItems="center">
+                            <PhoneIcon sx={{ mr: 1, fontSize: 16, color: 'text.secondary' }} />
+                            {student.phone}
+                          </Box>
+                        </TableCell>
+                        <TableCell>
+                          <Chip
+                            label={student.group.name}
+                            size="small"
+                            variant="outlined"
+                            color="primary"
+                          />
+                        </TableCell>
+                        <TableCell>{student.feePlan}</TableCell>
+                        <TableCell>
+                          {format(new Date(student.startDate), 'PP')}
+                        </TableCell>
+                        <TableCell>
+                          <Chip
+                            label="Active"
+                            size="small"
+                            color="success"
+                          />
+                        </TableCell>
+                        <TableCell align="right">
+                          <IconButton
+                            size="small"
+                            onClick={(e) => handleMenuOpen(e, student)}
+                          >
+                            <MoreVertIcon />
+                          </IconButton>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </TableContainer>
+            <TablePagination
+              rowsPerPageOptions={[5, 10, 25, 50]}
+              component="div"
+              count={processedStudents.length}
+              rowsPerPage={rowsPerPage}
+              page={page}
+              onPageChange={handleChangePage}
+              onRowsPerPageChange={handleChangeRowsPerPage}
+              labelRowsPerPage="Students per page:"
+            />
+          </Card>
+        ) : (
+          // Grid View
+          <Box>
+            <Grid container spacing={3}>
+              {paginatedStudents.map((student) => (
+                <Grid item xs={12} sm={6} md={4} lg={3} key={student._id}>
+                  <Card 
+                    sx={{ 
+                      p: 2, 
+                      cursor: 'pointer',
+                      transition: 'transform 0.2s, box-shadow 0.2s',
+                      '&:hover': {
+                        transform: 'translateY(-2px)',
+                        boxShadow: theme.shadows[4],
+                      }
+                    }}
+                  >
+                    <Box display="flex" alignItems="center" mb={2}>
+                      <Avatar sx={{ mr: 2, width: 40, height: 40 }}>
+                        {student.name.charAt(0)}
+                      </Avatar>
+                      <Box flex={1}>
+                        <Typography variant="h6" fontSize="1rem">
+                          {student.name}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          {student.phone}
+                        </Typography>
+                      </Box>
+                      <IconButton
+                        size="small"
+                        onClick={(e) => handleMenuOpen(e, student)}
+                      >
+                        <MoreVertIcon />
+                      </IconButton>
+                    </Box>
+                    <Box>
+                      <Chip
+                        label={student.group.name}
+                        size="small"
+                        variant="outlined"
+                        color="primary"
+                        sx={{ mb: 1 }}
+                      />
+                      <Typography variant="body2" color="text.secondary">
+                        Plan: {student.feePlan}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Started: {format(new Date(student.startDate), 'MMM dd, yyyy')}
+                      </Typography>
+                    </Box>
+                  </Card>
+                </Grid>
+              ))}
+            </Grid>
+            {paginatedStudents.length === 0 && (
+              <Box 
+                sx={{ 
+                  p: 4, 
+                  textAlign: 'center',
+                  bgcolor: alpha(theme.palette.primary.main, 0.05),
+                  borderRadius: 2,
+                }}
+              >
+                <Typography variant="h6" color="text.secondary">
+                  {searchQuery ? 'No students found' : 'No students added yet'}
+                </Typography>
+              </Box>
+            )}
+            <Box sx={{ mt: 3, display: 'flex', justifyContent: 'center' }}>
+              <TablePagination
+                rowsPerPageOptions={[8, 12, 24, 48]}
+                component="div"
+                count={processedStudents.length}
+                rowsPerPage={rowsPerPage}
+                page={page}
+                onPageChange={handleChangePage}
+                onRowsPerPageChange={handleChangeRowsPerPage}
+                labelRowsPerPage="Students per page:"
+              />
+            </Box>
+          </Box>
+        )}
 
         {/* Action Menu */}
         <Menu
@@ -471,6 +724,13 @@ const StudentManagement = () => {
           onClose={() => setOpenAddDialog(false)}
           maxWidth="sm"
           fullWidth
+          PaperProps={{
+            sx: {
+              margin: { xs: 1, sm: 3 },
+              width: { xs: 'calc(100vw - 16px)', sm: 'auto' },
+              maxHeight: { xs: 'calc(100vh - 32px)', sm: '90vh' },
+            },
+          }}
         >
           <DialogTitle>
             <Box display="flex" justifyContent="space-between" alignItems="center">
@@ -553,12 +813,18 @@ const StudentManagement = () => {
               </Grid>
             </Grid>
           </DialogContent>
-          <DialogActions>
-            <Button onClick={() => setOpenAddDialog(false)}>Cancel</Button>
+          <DialogActions sx={{ flexDirection: { xs: 'column', sm: 'row' }, gap: { xs: 1, sm: 0 }, p: { xs: 2, sm: 3 } }}>
+            <Button 
+              onClick={() => setOpenAddDialog(false)}
+              sx={{ order: { xs: 2, sm: 1 }, width: { xs: '100%', sm: 'auto' } }}
+            >
+              Cancel
+            </Button>
             <Button
               variant="contained"
               onClick={handleCreateStudent}
               disabled={createLoading || !newStudentData.name.trim() || !newStudentData.phone.trim() || !newStudentData.group}
+              sx={{ order: { xs: 1, sm: 2 }, width: { xs: '100%', sm: 'auto' } }}
             >
               {createLoading ? <CircularProgress size={20} /> : 'Add Student'}
             </Button>
@@ -571,6 +837,13 @@ const StudentManagement = () => {
           onClose={handleCloseEditDialog}
           maxWidth="sm"
           fullWidth
+          PaperProps={{
+            sx: {
+              margin: { xs: 1, sm: 3 },
+              width: { xs: 'calc(100vw - 16px)', sm: 'auto' },
+              maxHeight: { xs: 'calc(100vh - 32px)', sm: '90vh' },
+            },
+          }}
         >
           <DialogTitle>
             <Box display="flex" justifyContent="space-between" alignItems="center">
@@ -659,12 +932,18 @@ const StudentManagement = () => {
               </Grid>
             </Grid>
           </DialogContent>
-          <DialogActions>
-            <Button onClick={handleCloseEditDialog}>Cancel</Button>
+          <DialogActions sx={{ flexDirection: { xs: 'column', sm: 'row' }, gap: { xs: 1, sm: 0 }, p: { xs: 2, sm: 3 } }}>
+            <Button 
+              onClick={handleCloseEditDialog}
+              sx={{ order: { xs: 2, sm: 1 }, width: { xs: '100%', sm: 'auto' } }}
+            >
+              Cancel
+            </Button>
             <Button
               variant="contained"
               onClick={handleUpdateStudent}
               disabled={updateLoading || !editStudentData.name.trim() || !editStudentData.phone.trim()}
+              sx={{ order: { xs: 1, sm: 2 }, width: { xs: '100%', sm: 'auto' } }}
             >
               {updateLoading ? <CircularProgress size={20} /> : 'Update Student'}
             </Button>

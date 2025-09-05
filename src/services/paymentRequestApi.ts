@@ -17,6 +17,7 @@ apiClient.interceptors.request.use((config) => {
 });
 
 export interface PaymentRequest {
+  updatedAt: string;
   _id: string;
   student: {
     _id: string;

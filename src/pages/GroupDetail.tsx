@@ -408,15 +408,20 @@ const GroupDetail = () => {
                 sx={{
                   bgcolor: alpha(theme.palette.primary.main, 0.1),
                   color: theme.palette.primary.main,
-                  width: 56,
-                  height: 56,
+                  width: { xs: 48, sm: 56 },
+                  height: { xs: 48, sm: 56 },
                   mr: 2,
                 }}
               >
                 {groupDetails.name.charAt(0).toUpperCase()}
               </Avatar>
               <Box>
-                <Typography variant="h4" component="h1" fontWeight="bold">
+                <Typography
+                  variant="h5"
+                  component="h1"
+                  fontWeight="bold"
+                  sx={{ typography: { sm: 'h4', xs: 'h5' } }}
+                >
                   {groupDetails.name}
                 </Typography>
                 <Typography variant="subtitle1" color="text.secondary">
@@ -424,12 +429,13 @@ const GroupDetail = () => {
                 </Typography>
               </Box>
             </Box>
-            <Box display="flex" gap={1}>
+            <Box display="flex" gap={1} sx={{ flexDirection: { xs: 'column', sm: 'row' } }}>
               <Button
                 variant="outlined"
                 onClick={handleRefreshData}
                 disabled={loading || studentsLoading}
                 size="small"
+                sx={{ minWidth: { xs: '100%', sm: 'auto' } }}
               >
                 {(loading || studentsLoading) ? <CircularProgress size={16} /> : 'Refresh'}
               </Button>
@@ -437,6 +443,7 @@ const GroupDetail = () => {
                 variant="contained"
                 startIcon={<EditIcon />}
                 onClick={() => setOpenEditGroup(true)}
+                sx={{ minWidth: { xs: '100%', sm: 'auto' } }}
               >
                 Edit Group
               </Button>
@@ -821,6 +828,13 @@ const GroupDetail = () => {
           onClose={() => setOpenEditGroup(false)}
           maxWidth="sm"
           fullWidth
+          PaperProps={{
+            sx: {
+              margin: { xs: 1, sm: 3 },
+              width: { xs: 'calc(100vw - 16px)', sm: 'auto' },
+              maxHeight: { xs: 'calc(100vh - 32px)', sm: '90vh' },
+            },
+          }}
         >
           <DialogTitle>
             <Box display="flex" justifyContent="space-between" alignItems="center">
@@ -902,13 +916,19 @@ const GroupDetail = () => {
               </Grid>
             </Grid>
           </DialogContent>
-          <DialogActions>
-            <Button onClick={() => setOpenEditGroup(false)}>Cancel</Button>
+          <DialogActions sx={{ flexDirection: { xs: 'column', sm: 'row' }, gap: { xs: 1, sm: 0 }, p: { xs: 2, sm: 3 } }}>
+            <Button 
+              onClick={() => setOpenEditGroup(false)}
+              sx={{ order: { xs: 2, sm: 1 }, width: { xs: '100%', sm: 'auto' } }}
+            >
+              Cancel
+            </Button>
             <Button
               variant="contained"
               startIcon={saving ? <CircularProgress size={16} /> : <SaveIcon />}
               onClick={handleSaveGroupDetails}
               disabled={saving || !editedGroupDetails.name.trim() || editedGroupDetails.fee <= 0}
+              sx={{ order: { xs: 1, sm: 2 }, width: { xs: '100%', sm: 'auto' } }}
             >
               {saving ? 'Saving...' : 'Save Changes'}
             </Button>
@@ -921,6 +941,13 @@ const GroupDetail = () => {
           onClose={() => setOpenAddMember(false)}
           maxWidth="sm"
           fullWidth
+          PaperProps={{
+            sx: {
+              margin: { xs: 1, sm: 3 },
+              width: { xs: 'calc(100vw - 16px)', sm: 'auto' },
+              maxHeight: { xs: 'calc(100vh - 32px)', sm: '90vh' },
+            },
+          }}
         >
           <DialogTitle>
             <Box display="flex" justifyContent="space-between" alignItems="center">
@@ -997,13 +1024,19 @@ const GroupDetail = () => {
               </Grid>
             </Grid>
           </DialogContent>
-          <DialogActions>
-            <Button onClick={() => setOpenAddMember(false)}>Cancel</Button>
+          <DialogActions sx={{ flexDirection: { xs: 'column', sm: 'row' }, gap: { xs: 1, sm: 0 }, p: { xs: 2, sm: 3 } }}>
+            <Button 
+              onClick={() => setOpenAddMember(false)}
+              sx={{ order: { xs: 2, sm: 1 }, width: { xs: '100%', sm: 'auto' } }}
+            >
+              Cancel
+            </Button>
             <Button
               variant="contained"
               startIcon={createStudentLoading ? <CircularProgress size={16} /> : <PersonIcon />}
               onClick={handleAddStudent}
               disabled={createStudentLoading || !newStudentData.name || !newStudentData.phone}
+              sx={{ order: { xs: 1, sm: 2 }, width: { xs: '100%', sm: 'auto' } }}
             >
               {createStudentLoading ? 'Adding...' : 'Add Student'}
             </Button>

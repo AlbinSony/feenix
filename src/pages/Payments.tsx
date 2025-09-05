@@ -28,6 +28,11 @@ import {
   SelectChangeEvent,
   Checkbox,
   ListItemText,
+  TablePagination,
+  TableSortLabel,
+  ToggleButton,
+  ToggleButtonGroup,
+  Tooltip,
 } from '@mui/material';
 import { useState, useEffect } from 'react';
 import {
@@ -38,6 +43,8 @@ import {
   AttachMoney,
   Search,
   Close as CloseIcon,
+  ViewList as ViewListIcon,
+  ViewModule as ViewModuleIcon,
 } from '@mui/icons-material';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { DatePicker, LocalizationProvider } from '@mui/x-date-pickers';
@@ -95,6 +102,13 @@ const Payments = () => {
   const [error, setError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [createLoading, setCreateLoading] = useState(false);
+
+  // New state for pagination, sorting, and view
+  const [paymentPage, setPaymentPage] = useState(0);
+  const [paymentRowsPerPage, setPaymentRowsPerPage] = useState(10);
+  const [paymentSortBy, setPaymentSortBy] = useState<'student' | 'group' | 'amount' | 'dueDate' | 'status'>('dueDate');
+  const [paymentSortOrder, setPaymentSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [paymentViewMode, setPaymentViewMode] = useState<'table' | 'grid'>('table');
 
   // Fetch data on component mount
   useEffect(() => {
@@ -289,6 +303,73 @@ const Payments = () => {
     
     return studentName.includes(query) || feePlanName.includes(query) || groupName.includes(query);
   });
+
+  // Sorting function for payment requests
+  const handlePaymentSort = (property: 'student' | 'group' | 'amount' | 'dueDate' | 'status') => {
+    const isAsc = paymentSortBy === property && paymentSortOrder === 'asc';
+    setPaymentSortOrder(isAsc ? 'desc' : 'asc');
+    setPaymentSortBy(property);
+  };
+
+  // Process payment requests with sorting
+  const processedPaymentRequests = filteredPaymentRequests
+    .sort((a, b) => {
+      let aValue: string | number;
+      let bValue: string | number;
+      
+      switch (paymentSortBy) {
+        case 'student':
+          aValue = (a.student?.name || '').toLowerCase();
+          bValue = (b.student?.name || '').toLowerCase();
+          break;
+        case 'group':
+          aValue = (a.student?.group?.name || '').toLowerCase();
+          bValue = (b.student?.group?.name || '').toLowerCase();
+          break;
+        case 'amount':
+          aValue = a.amount || a.feePlan?.amount || a.student?.group?.fee || 0;
+          bValue = b.amount || b.feePlan?.amount || b.student?.group?.fee || 0;
+          break;
+        case 'dueDate':
+          aValue = a.dueDate ? new Date(a.dueDate).getTime() : 0;
+          bValue = b.dueDate ? new Date(b.dueDate).getTime() : 0;
+          break;
+        case 'status':
+          aValue = (a.status || '').toLowerCase();
+          bValue = (b.status || '').toLowerCase();
+          break;
+        default:
+          aValue = (a.student?.name || '').toLowerCase();
+          bValue = (b.student?.name || '').toLowerCase();
+      }
+      
+      if (paymentSortOrder === 'asc') {
+        return aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
+      } else {
+        return aValue > bValue ? -1 : aValue < bValue ? 1 : 0;
+      }
+    });
+
+  // Paginated payment requests
+  const paginatedPaymentRequests = processedPaymentRequests.slice(
+    paymentPage * paymentRowsPerPage,
+    paymentPage * paymentRowsPerPage + paymentRowsPerPage
+  );
+
+  const handlePaymentPageChange = (_event: unknown, newPage: number) => {
+    setPaymentPage(newPage);
+  };
+
+  const handlePaymentRowsPerPageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setPaymentRowsPerPage(parseInt(event.target.value, 10));
+    setPaymentPage(0);
+  };
+
+  const handlePaymentViewModeChange = (_event: React.MouseEvent<HTMLElement>, newViewMode: 'table' | 'grid') => {
+    if (newViewMode !== null) {
+      setPaymentViewMode(newViewMode);
+    }
+  };
 
   const handleGenerateReports = () => {
     // Create CSV data
@@ -526,94 +607,236 @@ const Payments = () => {
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: 2,
               }}
             >
-              <Typography variant="h6">Payment Requests ({paymentRequests.length})</Typography>
-              <TextField
-                size="small"
-                placeholder="Search payments..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                sx={{ width: 250 }}
-                InputProps={{
-                  startAdornment: (
-                    <Search sx={{ mr: 1, color: 'text.secondary' }} />
-                  ),
-                }}
-              />
+              <Typography variant="h6">Payment Requests ({processedPaymentRequests.length})</Typography>
+              
+              <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
+                <TextField
+                  size="small"
+                  placeholder="Search payments..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  sx={{ width: 200 }}
+                  InputProps={{
+                    startAdornment: (
+                      <Search sx={{ mr: 1, color: 'text.secondary' }} />
+                    ),
+                  }}
+                />
+                
+                <FormControl size="small" sx={{ minWidth: 120 }}>
+                  <InputLabel>Sort By</InputLabel>
+                  <Select
+                    value={paymentSortBy}
+                    label="Sort By"
+                    onChange={(e) => setPaymentSortBy(e.target.value as any)}
+                  >
+                    <MenuItem value="student">Student</MenuItem>
+                    <MenuItem value="group">Group</MenuItem>
+                    <MenuItem value="amount">Amount</MenuItem>
+                    <MenuItem value="dueDate">Due Date</MenuItem>
+                    <MenuItem value="status">Status</MenuItem>
+                  </Select>
+                </FormControl>
+
+                <ToggleButtonGroup
+                  value={paymentViewMode}
+                  exclusive
+                  onChange={handlePaymentViewModeChange}
+                  size="small"
+                >
+                  <ToggleButton value="table">
+                    <Tooltip title="Table View">
+                      <ViewListIcon />
+                    </Tooltip>
+                  </ToggleButton>
+                  <ToggleButton value="grid">
+                    <Tooltip title="Grid View">
+                      <ViewModuleIcon />
+                    </Tooltip>
+                  </ToggleButton>
+                </ToggleButtonGroup>
+
+                <Button
+                  variant="outlined"
+                  onClick={() => setPaymentSortOrder(paymentSortOrder === 'asc' ? 'desc' : 'asc')}
+                  size="small"
+                >
+                  {paymentSortOrder === 'asc' ? '↑' : '↓'}
+                </Button>
+              </Box>
             </Box>
 
             {paymentRequestsLoading ? (
               <Box display="flex" justifyContent="center" p={4}>
                 <CircularProgress size={30} />
               </Box>
-            ) : (
-              <TableContainer>
-                <Table>
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>Student</TableCell>
-                      <TableCell>Group</TableCell>
-                      <TableCell>Fee Plan</TableCell>
-                      <TableCell>Amount</TableCell>
-                      <TableCell>Due Date</TableCell>
-                      <TableCell>Status</TableCell>
-                      <TableCell>Actions</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {filteredPaymentRequests.length === 0 ? (
+            ) : paymentViewMode === 'table' ? (
+              <>
+                <TableContainer>
+                  <Table>
+                    <TableHead>
                       <TableRow>
-                        <TableCell colSpan={7} align="center" sx={{ py: 4 }}>
-                          <Typography variant="body2" color="text.secondary">
-                            {searchQuery ? 'No payment requests found' : 'No payment requests created yet'}
-                          </Typography>
+                        <TableCell>
+                          <TableSortLabel
+                            active={paymentSortBy === 'student'}
+                            direction={paymentSortBy === 'student' ? paymentSortOrder : 'asc'}
+                            onClick={() => handlePaymentSort('student')}
+                          >
+                            Student
+                          </TableSortLabel>
                         </TableCell>
+                        <TableCell>
+                          <TableSortLabel
+                            active={paymentSortBy === 'group'}
+                            direction={paymentSortBy === 'group' ? paymentSortOrder : 'asc'}
+                            onClick={() => handlePaymentSort('group')}
+                          >
+                            Group
+                          </TableSortLabel>
+                        </TableCell>
+                        <TableCell>Fee Plan</TableCell>
+                        <TableCell>
+                          <TableSortLabel
+                            active={paymentSortBy === 'amount'}
+                            direction={paymentSortBy === 'amount' ? paymentSortOrder : 'asc'}
+                            onClick={() => handlePaymentSort('amount')}
+                          >
+                            Amount
+                          </TableSortLabel>
+                        </TableCell>
+                        <TableCell>
+                          <TableSortLabel
+                            active={paymentSortBy === 'dueDate'}
+                            direction={paymentSortBy === 'dueDate' ? paymentSortOrder : 'asc'}
+                            onClick={() => handlePaymentSort('dueDate')}
+                          >
+                            Due Date
+                          </TableSortLabel>
+                        </TableCell>
+                        <TableCell>
+                          <TableSortLabel
+                            active={paymentSortBy === 'status'}
+                            direction={paymentSortBy === 'status' ? paymentSortOrder : 'asc'}
+                            onClick={() => handlePaymentSort('status')}
+                          >
+                            Status
+                          </TableSortLabel>
+                        </TableCell>
+                        <TableCell>Actions</TableCell>
                       </TableRow>
-                    ) : (
-                      filteredPaymentRequests.map((request) => (
-                        <TableRow key={request._id}>
-                          <TableCell>{request.student?.name || 'Unknown Student'}</TableCell>
-                          <TableCell>
-                            {request.student?.group?.name ? (
+                    </TableHead>
+                    <TableBody>
+                      {paginatedPaymentRequests.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={7} align="center" sx={{ py: 4 }}>
+                            <Typography variant="body2" color="text.secondary">
+                              {searchQuery ? 'No payment requests found' : 'No payment requests created yet'}
+                            </Typography>
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        paginatedPaymentRequests.map((request) => (
+                          <TableRow key={request._id}>
+                            <TableCell>{request.student?.name || 'Unknown Student'}</TableCell>
+                            <TableCell>
+                              {request.student?.group?.name ? (
+                                <Chip
+                                  label={request.student.group.name}
+                                  size="small"
+                                  variant="outlined"
+                                  color="primary"
+                                />
+                              ) : (
+                                <Typography variant="body2" color="text.secondary">
+                                  No Group
+                                </Typography>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              {request.feePlan?.name ? (
+                                request.feePlan.name
+                              ) : (
+                                <Box>
+                                  <Typography variant="body2" fontWeight="500">
+                                    Group Default
+                                  </Typography>
+                                  <Typography variant="caption" color="text.secondary">
+                                    {request.group ? 
+                                      `₹${request.group.fee} - ${request.group.frequency}` : 
+                                      request.student?.group ? 
+                                      `₹${request.student.group.fee} - ${request.student.group.frequency}` :
+                                      'Unknown Plan'
+                                    }
+                                  </Typography>
+                                </Box>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              ₹{request.amount || request.feePlan?.amount || request.student?.group?.fee || 0}
+                            </TableCell>
+                            <TableCell>
+                              {request.dueDate ? format(new Date(request.dueDate), 'PP') : 'No Due Date'}
+                            </TableCell>
+                            <TableCell>
                               <Chip
-                                label={request.student.group.name}
+                                label={request.status || 'Unknown'}
+                                color={
+                                  request.status === 'Paid'
+                                    ? 'success'
+                                    : request.status === 'Overdue'
+                                    ? 'error'
+                                    : 'warning'
+                                }
                                 size="small"
-                                variant="outlined"
-                                color="primary"
                               />
-                            ) : (
-                              <Typography variant="body2" color="text.secondary">
-                                No Group
-                              </Typography>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            {request.feePlan?.name ? (
-                              request.feePlan.name
-                            ) : (
-                              <Box>
-                                <Typography variant="body2" fontWeight="500">
-                                  Group Default
-                                </Typography>
-                                <Typography variant="caption" color="text.secondary">
-                                  {request.group ? 
-                                    `₹${request.group.fee} - ${request.group.frequency}` : 
-                                    request.student?.group ? 
-                                    `₹${request.student.group.fee} - ${request.student.group.frequency}` :
-                                    'Unknown Plan'
-                                  }
-                                </Typography>
-                              </Box>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            ₹{request.amount || request.feePlan?.amount || request.student?.group?.fee || 0}
-                          </TableCell>
-                          <TableCell>
-                            {request.dueDate ? format(new Date(request.dueDate), 'PP') : 'No Due Date'}
-                          </TableCell>
-                          <TableCell>
+                            </TableCell>
+                            <TableCell>
+                              <Button
+                                size="small"
+                                variant="contained"
+                                color={request.status === 'Paid' ? 'success' : 'primary'}
+                                onClick={() => {
+                                  setSelectedPaymentRequest(request);
+                                  setOpenPaymentUpdate(true);
+                                }}
+                                disabled={request.status === 'Paid'}
+                              >
+                                {request.status === 'Paid' ? 'Paid' : 'Update Status'}
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+                <TablePagination
+                  rowsPerPageOptions={[5, 10, 25, 50]}
+                  component="div"
+                  count={processedPaymentRequests.length}
+                  rowsPerPage={paymentRowsPerPage}
+                  page={paymentPage}
+                  onPageChange={handlePaymentPageChange}
+                  onRowsPerPageChange={handlePaymentRowsPerPageChange}
+                  labelRowsPerPage="Requests per page:"
+                />
+              </>
+            ) : (
+              // Grid View for Payment Requests
+              <>
+                <Box sx={{ p: 2 }}>
+                  <Grid container spacing={3}>
+                    {paginatedPaymentRequests.map((request) => (
+                      <Grid item xs={12} sm={6} md={4} key={request._id}>
+                        <Card sx={{ p: 2, border: '1px solid', borderColor: 'divider' }}>
+                          <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={2}>
+                            <Typography variant="h6" fontSize="1rem">
+                              {request.student?.name || 'Unknown Student'}
+                            </Typography>
                             <Chip
                               label={request.status || 'Unknown'}
                               color={
@@ -625,27 +848,57 @@ const Payments = () => {
                               }
                               size="small"
                             />
-                          </TableCell>
-                          <TableCell>
-                            <Button
-                              size="small"
-                              variant="contained"
-                              color={request.status === 'Paid' ? 'success' : 'primary'}
-                              onClick={() => {
-                                setSelectedPaymentRequest(request);
-                                setOpenPaymentUpdate(true);
-                              }}
-                              disabled={request.status === 'Paid'}
-                            >
-                              {request.status === 'Paid' ? 'Paid' : 'Update Status'}
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-              </TableContainer>
+                          </Box>
+                          
+                          <Box sx={{ mb: 2 }}>
+                            {request.student?.group?.name && (
+                              <Chip
+                                label={request.student.group.name}
+                                size="small"
+                                variant="outlined"
+                                color="primary"
+                                sx={{ mb: 1 }}
+                              />
+                            )}
+                            <Typography variant="body2" color="text.secondary">
+                              Amount: ₹{request.amount || request.feePlan?.amount || request.student?.group?.fee || 0}
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary">
+                              Due: {request.dueDate ? format(new Date(request.dueDate), 'PP') : 'No Due Date'}
+                            </Typography>
+                          </Box>
+
+                          <Button
+                            fullWidth
+                            size="small"
+                            variant="contained"
+                            color={request.status === 'Paid' ? 'success' : 'primary'}
+                            onClick={() => {
+                              setSelectedPaymentRequest(request);
+                              setOpenPaymentUpdate(true);
+                            }}
+                            disabled={request.status === 'Paid'}
+                          >
+                            {request.status === 'Paid' ? 'Paid' : 'Update Status'}
+                          </Button>
+                        </Card>
+                      </Grid>
+                    ))}
+                  </Grid>
+                </Box>
+                <Box sx={{ px: 2, pb: 2 }}>
+                  <TablePagination
+                    rowsPerPageOptions={[6, 12, 24, 48]}
+                    component="div"
+                    count={processedPaymentRequests.length}
+                    rowsPerPage={paymentRowsPerPage}
+                    page={paymentPage}
+                    onPageChange={handlePaymentPageChange}
+                    onRowsPerPageChange={handlePaymentRowsPerPageChange}
+                    labelRowsPerPage="Requests per page:"
+                  />
+                </Box>
+              </>
             )}
           </Card>
         )}
@@ -746,6 +999,9 @@ const Payments = () => {
             sx: {
               borderRadius: 3,
               boxShadow: 3,
+              margin: { xs: 1, sm: 3 },
+              width: { xs: 'calc(100vw - 16px)', sm: 'auto' },
+              maxHeight: { xs: 'calc(100vh - 32px)', sm: '90vh' },
             },
           }}
         >
@@ -759,7 +1015,7 @@ const Payments = () => {
               </IconButton>
             </Box>
           </DialogTitle>
-          <DialogContent>
+          <DialogContent sx={{ px: { xs: 2, sm: 3 } }}>
             <Grid container spacing={3} sx={{ mt: 1 }}>
               <Grid item xs={12}>
                 <TextField
@@ -810,7 +1066,8 @@ const Payments = () => {
                   <Select
                     value={createRequestData.feePlan}
                     label="Fee Plan"
-                    onChange={(e) => setCreateRequestData(prev => ({ ...prev, feePlan: e.target.value }))}
+                    onChange={(e) => setCreateRequestData(prev => ({ ...prev, feePlan: e.target.value }))
+                    }
                     displayEmpty
                     renderValue={(selected) => {
                       if (!selected || selected === '') {
@@ -838,8 +1095,30 @@ const Payments = () => {
                         },
                       },
                     }}
+                    sx={{
+                      '& .MuiSelect-select': {
+                        minHeight: '20px !important',
+                        display: 'flex',
+                        alignItems: 'center',
+                      },
+                      '& .MuiInputLabel-root': {
+                        position: 'absolute',
+                        top: 0,
+                        left: 14,
+                        transform: 'translate(0, 16px) scale(1)',
+                        transformOrigin: 'top left',
+                        transition: 'all 0.2s ease-out',
+                        zIndex: 1,
+                        pointerEvents: 'none',
+                        '&.MuiInputLabel-shrink': {
+                          transform: 'translate(0, -6px) scale(0.75)',
+                          backgroundColor: 'white',
+                          padding: '0 4px',
+                        },
+                      },
+                    }}
                   >
-                    <MenuItem value="">
+                    <MenuItem value="" sx={{ minHeight: '60px !important' }}>
                       <Box sx={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
                         <Typography variant="body1" fontWeight="600" color="primary.main">
                           Use Group Default Fee
@@ -856,7 +1135,7 @@ const Payments = () => {
                       </Box>
                     </MenuItem>
                     {feePlans.map((plan) => (
-                      <MenuItem key={plan._id} value={plan._id}>
+                      <MenuItem key={plan._id} value={plan._id} sx={{ minHeight: '60px !important' }}>
                         <Box sx={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
                           <Typography variant="body1" fontWeight="500">
                             {plan.name}
@@ -885,13 +1164,20 @@ const Payments = () => {
               </Grid>
             </Grid>
           </DialogContent>
-          <DialogActions sx={{ p: 3 }}>
-            <Button onClick={() => setOpenCreateRequest(false)}>Cancel</Button>
+          <DialogActions sx={{ p: { xs: 2, sm: 3 }, flexDirection: { xs: 'column', sm: 'row' }, gap: { xs: 1, sm: 0 } }}>
+            <Button 
+              onClick={() => setOpenCreateRequest(false)}
+              sx={{ order: { xs: 2, sm: 1 }, width: { xs: '100%', sm: 'auto' } }}
+            >
+              Cancel
+            </Button>
             <Button
               variant="contained"
               onClick={handleCreatePaymentRequests}
               disabled={createLoading || !createRequestData.selectedStudents.length || !createRequestData.dueDate}
               sx={{
+                order: { xs: 1, sm: 2 },
+                width: { xs: '100%', sm: 'auto' },
                 px: 3,
                 background: 'linear-gradient(45deg, #22c55e, #16a34a)',
                 '&:hover': {
@@ -912,6 +1198,8 @@ const Payments = () => {
             sx: {
               borderRadius: 3,
               boxShadow: 3,
+              margin: { xs: 1, sm: 3 },
+              width: { xs: 'calc(100vw - 16px)', sm: 'auto' },
             },
           }}
         >
@@ -950,12 +1238,18 @@ const Payments = () => {
               )}
             </Grid>
           </DialogContent>
-          <DialogActions>
-            <Button onClick={() => setOpenPaymentUpdate(false)}>Cancel</Button>
+          <DialogActions sx={{ flexDirection: { xs: 'column', sm: 'row' }, gap: { xs: 1, sm: 0 }, p: { xs: 2, sm: 3 } }}>
+            <Button 
+              onClick={() => setOpenPaymentUpdate(false)}
+              sx={{ order: { xs: 2, sm: 1 }, width: { xs: '100%', sm: 'auto' } }}
+            >
+              Cancel
+            </Button>
             <Button 
               variant="contained" 
               onClick={handleUpdatePaymentStatus}
               disabled={createLoading}
+              sx={{ order: { xs: 1, sm: 2 }, width: { xs: '100%', sm: 'auto' } }}
             >
               {createLoading ? <CircularProgress size={20} /> : 'Update'}
             </Button>
