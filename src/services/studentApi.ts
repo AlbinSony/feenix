@@ -37,7 +37,7 @@ export interface CreateStudentData {
   name: string;
   phone: string;
   group: string;
-  feePlan: string;
+  feePlan?: string; // Make optional
   startDate: string;
 }
 
@@ -116,7 +116,7 @@ export const studentApi = {
       console.error('Error fetching students by group:', error);
       // Fallback to filtering all students
       const allStudents = await studentApi.getAll();
-      return allStudents.filter(student => student.group._id === groupId);
+      return allStudents.filter(student => student.group?._id === groupId);
     }
   },
 

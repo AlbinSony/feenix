@@ -50,6 +50,7 @@ import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { format } from 'date-fns';
 import { studentApi, Student, CreateStudentData } from '../services/studentApi';
 import { groupApi, Group } from '../services/groupApi';
+import { feePlanApi, FeePlan } from '../services/feePlanApi';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 
@@ -60,6 +61,7 @@ const StudentManagement = () => {
   // State management
   const [students, setStudents] = useState<Student[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
+  const [feePlans, setFeePlans] = useState<FeePlan[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
@@ -95,6 +97,7 @@ const StudentManagement = () => {
     if (isAuthenticated) {
       fetchStudents();
       fetchGroups();
+      fetchFeePlans();
     }
   }, [isAuthenticated]);
 
@@ -118,6 +121,15 @@ const StudentManagement = () => {
       setGroups(data);
     } catch (err: any) {
       console.error('Error fetching groups:', err);
+    }
+  };
+
+  const fetchFeePlans = async () => {
+    try {
+      const data = await feePlanApi.getAll();
+      setFeePlans(data);
+    } catch (err: any) {
+      console.error('Error fetching fee plans:', err);
     }
   };
 
@@ -510,18 +522,22 @@ const StudentManagement = () => {
                   </Select>
                 </FormControl>
               </Grid>
-              <Grid item xs={12} sm={6}>
+              <Grid item xs={12}>
                 <FormControl fullWidth>
-                  <InputLabel>Fee Plan</InputLabel>
+                  <InputLabel>Default Fee Plan (Optional)</InputLabel>
                   <Select
-                    value={newStudentData.feePlan}
-                    label="Fee Plan"
+                    value={newStudentData.feePlan || ''}
+                    label="Default Fee Plan"
                     onChange={(e) =>
                       setNewStudentData((prev) => ({ ...prev, feePlan: e.target.value }))
                     }
                   >
-                    <MenuItem value="Monthly">Monthly</MenuItem>
-                    <MenuItem value="One-Time">One-Time</MenuItem>
+                    <MenuItem value="">No default plan</MenuItem>
+                    {feePlans.map((plan) => (
+                      <MenuItem key={plan._id} value={plan._id}>
+                        {plan.name} - ₹{plan.amount} ({plan.frequency})
+                      </MenuItem>
+                    ))}
                   </Select>
                 </FormControl>
               </Grid>
@@ -618,6 +634,9 @@ const StudentManagement = () => {
                   >
                     <MenuItem value="Monthly">Monthly</MenuItem>
                     <MenuItem value="One-Time">One-Time</MenuItem>
+                    <MenuItem value="Quarterly">Quarterly</MenuItem>
+                    <MenuItem value="Yearly">Yearly</MenuItem>
+                    <MenuItem value="Weekly">Weekly</MenuItem>
                   </Select>
                 </FormControl>
               </Grid>

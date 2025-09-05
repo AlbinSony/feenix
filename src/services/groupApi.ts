@@ -21,7 +21,7 @@ export interface Group {
   name: string;
   description: string;
   fee: number;
-  frequency: 'Monthly' | 'One-Time';
+  frequency: 'Monthly' | 'One-Time' | 'Quarterly'; // Add Quarterly
   students: number;
   collected: number;
   dues: number;
@@ -36,7 +36,7 @@ export interface CreateGroupData {
   name: string;
   description?: string;
   fee: number;
-  frequency: 'Monthly' | 'One-Time';
+  frequency: 'Monthly' | 'One-Time' | 'Quarterly'; // Add Quarterly
 }
 
 export const groupApi = {

@@ -124,7 +124,7 @@ const GroupDetail = () => {
     name: '',
     description: '',
     fee: 0,
-    frequency: 'Monthly' as 'Monthly' | 'One-Time',
+    frequency: 'Monthly' as 'Monthly' | 'One-Time' | 'Quarterly',
   });
 
   const [groupStudents, setGroupStudents] = useState<Student[]>([]);
@@ -134,7 +134,7 @@ const GroupDetail = () => {
   const [newStudentData, setNewStudentData] = useState({
     name: '',
     phone: '',
-    feePlan: 'Monthly' as 'Monthly' | 'One-Time',
+    feePlan: 'Monthly' as 'Monthly' | 'One-Time' | 'Quarterly' | 'Yearly' | 'Weekly',
     startDate: new Date(),
   });
 
@@ -722,7 +722,7 @@ const GroupDetail = () => {
                         onChange={(e) =>
                           setEditedGroupDetails((prev) => ({
                             ...prev,
-                            frequency: e.target.value as 'Monthly' | 'One-Time',
+                            frequency: e.target.value as 'Monthly' | 'One-Time' | 'Quarterly',
                           }))
                         }
                         SelectProps={{
@@ -731,6 +731,7 @@ const GroupDetail = () => {
                       >
                         <option value="Monthly">Monthly</option>
                         <option value="One-Time">One-Time</option>
+                        <option value="Quarterly">Quarterly</option>
                       </TextField>
                     </Grid>
                   </Grid>
@@ -887,7 +888,7 @@ const GroupDetail = () => {
                   onChange={(e) =>
                     setEditedGroupDetails((prev) => ({
                       ...prev,
-                      frequency: e.target.value as 'Monthly' | 'One-Time',
+                      frequency: e.target.value as 'Monthly' | 'One-Time' | 'Quarterly',
                     }))
                   }
                   SelectProps={{
@@ -896,6 +897,7 @@ const GroupDetail = () => {
                 >
                   <option value="Monthly">Monthly</option>
                   <option value="One-Time">One-Time</option>
+                  <option value="Quarterly">Quarterly</option>
                 </TextField>
               </Grid>
             </Grid>
@@ -967,17 +969,19 @@ const GroupDetail = () => {
                     onChange={(e) =>
                       setNewStudentData((prev) => ({
                         ...prev,
-                        feePlan: e.target.value as 'Monthly' | 'One-Time',
+                        feePlan: e.target.value as 'Monthly' | 'One-Time' | 'Quarterly' | 'Yearly' | 'Weekly',
                       }))
                     }
                   >
-                    <MenuItem value="Monthly">Monthly</MenuItem>
-                    <MenuItem value="One-Time">One-Time</MenuItem>
-                  </Select>
-                </FormControl>
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <DatePicker
+                      <MenuItem value="Monthly">Monthly</MenuItem>
+                      <MenuItem value="One-Time">One-Time</MenuItem>
+                      <MenuItem value="Quarterly">Quarterly</MenuItem>
+                      <MenuItem value="Yearly">Yearly</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <DatePicker
                   label="Start Date"
                   value={newStudentData.startDate}
                   onChange={(newValue) =>
